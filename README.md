@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BT - Blindtest
 
-## Getting Started
+BT est une web app Next.js mobile-first pour lancer des blindtests musicaux :
+mode soiree avec categories et previews iTunes, plus mini-jeux rapides.
 
-First, run the development server:
+## Developpement
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrir ensuite `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## PWA
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+BT inclut une PWA simple pour la V1 :
 
-## Learn More
+- manifest App Router avec mode `standalone`
+- icones locales 192, 512, maskable et Apple touch
+- service worker minimal
+- page `/offline`
 
-To learn more about Next.js, take a look at the following resources:
+Le service worker reste volontairement prudent : il ne met pas en cache
+agressivement `/api/music/search`, les previews iTunes, ni les medias audio.
+Les extraits musicaux necessitent donc une connexion internet.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Pour tester l'installation mobile de facon fiable, deployer sur HTTPS, par
+exemple via Vercel. En local, le manifest et la page offline peuvent etre
+verifies, mais l'experience installable complete depend du navigateur.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Verification
 
-## Deploy on Vercel
+```bash
+npm run lint
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Pour une validation complete avant production, lancer aussi un build local ou
+Vercel. Cette verification n'est pas incluse dans le mode economie.
