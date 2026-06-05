@@ -62,15 +62,19 @@ export default async function PlaylistDetailPage({
     );
   }
 
-  const tracks = playlist.trackIds
+  const fallbackTracks = playlist.trackIds
     .map((trackId) => mockTracks.find((track) => track.id === trackId))
     .filter((track) => track !== undefined);
+  const questionCount = playlist.questionCount ?? fallbackTracks.length;
   const trackCountLabel =
-    tracks.length > 1 ? `${tracks.length} questions` : `${tracks.length} question`;
-  const estimatedDuration = formatEstimatedDuration(tracks.length);
-  const categories = Array.from(
-    new Set(tracks.map((track) => track.category).filter(Boolean)),
-  ).slice(0, 4);
+    questionCount > 1 ? `${questionCount} questions` : `${questionCount} question`;
+  const estimatedDuration = formatEstimatedDuration(questionCount);
+  const categories =
+    playlist.categories && playlist.categories.length > 0
+      ? playlist.categories
+      : Array.from(
+          new Set(fallbackTracks.map((track) => track.category).filter(Boolean)),
+        );
 
   return (
     <PageShell>
@@ -135,7 +139,7 @@ export default async function PlaylistDetailPage({
               className="w-full sm:w-fit"
               href={`/game?playlistId=${playlist.id}`}
             >
-              Demarrer le mini-jeu
+              Preparer les extraits
             </Button>
           </div>
         </div>

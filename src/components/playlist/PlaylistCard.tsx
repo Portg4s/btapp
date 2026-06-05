@@ -13,10 +13,11 @@ type PlaylistCardProps = {
 };
 
 export function PlaylistCard({ playlist }: PlaylistCardProps) {
+  const questionCount = playlist.questionCount ?? playlist.trackIds.length;
   const trackCountLabel =
-    playlist.trackIds.length > 1
-      ? `${playlist.trackIds.length} questions`
-      : `${playlist.trackIds.length} question`;
+    questionCount > 1
+      ? `${questionCount} questions`
+      : `${questionCount} question`;
 
   return (
     <Card className="relative flex h-full flex-col gap-4 overflow-hidden border-cyan-300/16 bg-cyan-300/[0.04]">

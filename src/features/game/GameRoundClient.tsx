@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -8,18 +8,23 @@ import { Card } from "@/components/ui/Card";
 import {
   calculateScore,
   createAnswerOptions,
+  createGameSession,
   getCurrentRound,
   getGameProgress,
 } from "@/features/game";
 import { useAudioPreview } from "@/features/game/useAudioPreview";
+import { searchItunesTracks } from "@/features/music/musicProvider";
 import type { GameSession, UserAnswer } from "@/types/game";
 import type { MusicTrack, Playlist } from "@/types/music";
 
 type GameRoundClientProps = {
-  initialSession: GameSession;
   playlist: Playlist;
-  tracks: MusicTrack[];
 };
+
+type ProviderStatus = "loading" | "ready" | "error";
+
+const MIN_OPTION_COUNT = 4;
+const DEFAULT_QUESTION_COUNT = 10;
 
 function createAnsweredSession(
   initialSession: GameSession,
@@ -38,35 +43,100 @@ function createAnsweredSession(
   };
 }
 
-export function GameRoundClient({
-  initialSession,
-  playlist,
-  tracks,
-}: GameRoundClientProps) {
+function getPlayableCategories(playlist: Playlist) {
+  return playlist.categories && playlist.categories.length > 0
+    ? playlist.categories
+    : [playlist.name];
+}
+
+export function GameRoundClient({ playlist }: GameRoundClientProps) {
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState(false);
+  const [providerStatus, setProviderStatus] =
+    useState<ProviderStatus>("loading");
+  const [providerError, setProviderError] = useState<string | null>(null);
+  const [tracks, setTracks] = useState<MusicTrack[]>([]);
+  const questionCount = playlist.questionCount ?? DEFAULT_QUESTION_COUNT;
 
-  const session = useMemo(
-    () =>
-      createAnsweredSession(
-        initialSession,
-        answers,
-        selectedTrackId,
-        isFinished,
-      ),
-    [answers, initialSession, isFinished, selectedTrackId],
+  useEffect(() => {
+    let isCancelled = false;
+
+    void searchItunesTracks({
+      categories: getPlayableCategories(playlist),
+      category: playlist.name,
+      difficulty: playlist.difficulty,
+      limit: questionCount,
+    }).then((result) => {
+      if (isCancelled) {
+        return;
+      }
+
+      if (result.tracks.length < questionCount) {
+        setProviderStatus("error");
+        setProviderError(
+          result.error ??
+            "Impossible de charger assez d'extraits reels pour ce theme.",
+        );
+        return;
+      }
+
+      setTracks(result.tracks.slice(0, questionCount));
+      setProviderStatus("ready");
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [playlist, questionCount]);
+
+  const apiPlaylist = useMemo(
+    () => ({
+      ...playlist,
+      trackIds: tracks.map((track) => track.id),
+    }),
+    [playlist, tracks],
   );
-  const currentRound = getCurrentRound(session, tracks);
-  const progress = getGameProgress(session);
-  const score = calculateScore(session);
+  const initialSession = useMemo(
+    () =>
+      createGameSession(apiPlaylist, tracks, {
+        sessionId: `${playlist.id}-api`,
+        status: "playing",
+      }),
+    [apiPlaylist, playlist.id, tracks],
+  );
+  const session = useMemo(() => {
+    if (!initialSession) {
+      return null;
+    }
+
+    return createAnsweredSession(
+      initialSession,
+      answers,
+      selectedTrackId,
+      isFinished,
+    );
+  }, [answers, initialSession, isFinished, selectedTrackId]);
+  const currentRound = session ? getCurrentRound(session, tracks) : null;
+  const progress = session
+    ? getGameProgress(session)
+    : { currentRound: 0, percentage: 0, totalRounds: questionCount };
+  const score = session
+    ? calculateScore(session)
+    : {
+        averageResponseTimeMs: 0,
+        correctAnswers: 0,
+        sessionId: playlist.id,
+        totalPoints: 0,
+        totalRounds: questionCount,
+      };
   const answerOptions = currentRound
     ? createAnswerOptions(currentRound.track, tracks)
     : [];
   const audio = useAudioPreview(currentRound?.track.audioPreviewUrl ?? "");
   const hasAnswered = selectedTrackId !== null;
   const isCorrect = selectedTrackId === currentRound?.track.id;
-  const isLastRound = answers.length >= initialSession.trackIds.length;
+  const isLastRound = answers.length >= questionCount;
 
   function handleAnswer(trackId: string) {
     if (!currentRound || hasAnswered || isFinished) {
@@ -124,7 +194,66 @@ export function GameRoundClient({
     void audio.play();
   }
 
-  if (isFinished || !currentRound) {
+  if (providerStatus === "loading") {
+    return (
+      <PageShell>
+        <Card
+          as="section"
+          className="flex max-w-2xl flex-col gap-5 border-cyan-300/20 bg-cyan-300/[0.045] lg:col-span-2"
+        >
+          <Badge>Preparation</Badge>
+          <h1 className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
+            Preparation des extraits.
+          </h1>
+          <p className="max-w-xl text-base leading-7 text-zinc-300">
+            Recherche de {questionCount} previews audio pour le theme{" "}
+            {playlist.name}.
+          </p>
+          <Button className="w-full sm:w-fit" href="/playlists" variant="ghost">
+            Changer de theme
+          </Button>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (
+    providerStatus === "error" ||
+    (!isFinished &&
+      (!session ||
+        !currentRound ||
+        answerOptions.length < MIN_OPTION_COUNT))
+  ) {
+    return (
+      <PageShell>
+        <Card
+          as="section"
+          className="flex max-w-2xl flex-col gap-6 border-fuchsia-300/20 bg-fuchsia-300/[0.045] lg:col-span-2"
+        >
+          <Badge>Extraits indisponibles</Badge>
+          <div className="space-y-4">
+            <h1 className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
+              Impossible de lancer ce theme.
+            </h1>
+            <p className="max-w-xl text-base leading-7 text-zinc-300">
+              {providerError ??
+                "Le theme ne fournit pas assez de previews pour une session propre."}
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button className="w-full sm:w-fit" href="/playlists">
+              Changer de theme
+            </Button>
+            <Button className="w-full sm:w-fit" href="/mini-games" variant="secondary">
+              Mini-jeux
+            </Button>
+          </div>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (isFinished) {
     return (
       <PageShell>
         <Card
@@ -222,7 +351,7 @@ export function GameRoundClient({
 
             {audio.status === "error" ? (
               <p className="text-sm leading-6 text-fuchsia-200">
-                Cet extrait local est indisponible pour ce theme.
+                Cette preview iTunes est indisponible pour le moment.
               </p>
             ) : null}
           </div>

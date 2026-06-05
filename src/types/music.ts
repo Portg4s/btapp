@@ -23,6 +23,8 @@ export type Playlist = {
   description: string;
   difficulty: PlaylistDifficulty;
   trackIds: string[];
+  categories?: string[];
+  questionCount?: number;
   coverUrl?: string;
   accentColor?: string;
 };

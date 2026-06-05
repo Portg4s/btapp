@@ -3,9 +3,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { mockPlaylists } from "@/data/mockPlaylists";
-import { mockTracks } from "@/data/mockTracks";
 import { GameRoundClient } from "@/features/game/GameRoundClient";
-import { createGameSession, getCurrentRound } from "@/features/game";
 import type { Playlist } from "@/types/music";
 
 type GamePageProps = {
@@ -28,11 +26,8 @@ function resolvePlaylist(playlistId?: string): Playlist | undefined {
 export default async function GamePage({ searchParams }: GamePageProps) {
   const { playlistId: playlistIdParam } = await searchParams;
   const playlist = resolvePlaylist(getPlaylistId(playlistIdParam));
-  const session = createGameSession(playlist, mockTracks, {
-    status: "playing",
-  });
 
-  if (!playlist || !session || !getCurrentRound(session, mockTracks)) {
+  if (!playlist) {
     return (
       <PageShell>
         <Card
@@ -56,11 +51,5 @@ export default async function GamePage({ searchParams }: GamePageProps) {
     );
   }
 
-  return (
-    <GameRoundClient
-      initialSession={session}
-      playlist={playlist}
-      tracks={mockTracks}
-    />
-  );
+  return <GameRoundClient key={playlist.id} playlist={playlist} />;
 }
