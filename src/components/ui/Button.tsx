@@ -2,14 +2,18 @@ import Link from "next/link";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
+type NativeButtonType = NonNullable<
+  ButtonHTMLAttributes<HTMLButtonElement>["type"]
+>;
 
 type BaseButtonProps = {
   variant?: ButtonVariant;
 };
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
+type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type"> &
   BaseButtonProps & {
     href?: never;
+    type?: NativeButtonType;
   };
 
 type ButtonLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> &
@@ -29,8 +33,14 @@ const variantClasses: Record<ButtonVariant, string> = {
     "border border-transparent bg-transparent text-zinc-300 hover:border-cyan-300/20 hover:bg-cyan-300/[0.06] hover:text-cyan-50 focus:ring-cyan-500",
 };
 
+function isButtonLinkProps(
+  props: ButtonProps | ButtonLinkProps,
+): props is ButtonLinkProps {
+  return typeof props.href === "string";
+}
+
 export function Button(props: ButtonProps | ButtonLinkProps) {
-  if (props.href) {
+  if (isButtonLinkProps(props)) {
     const { className = "", href, variant = "primary", ...linkProps } = props;
     const classes = `${baseClasses} ${variantClasses[variant]} ${className}`;
 

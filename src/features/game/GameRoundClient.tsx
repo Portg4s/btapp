@@ -286,6 +286,10 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
     );
   }
 
+  if (!currentRound) {
+    return null;
+  }
+
   return (
     <PageShell>
       <div className="flex flex-col gap-4 lg:col-span-2">
