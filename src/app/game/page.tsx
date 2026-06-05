@@ -45,12 +45,11 @@ export default async function GamePage({ searchParams }: GamePageProps) {
               Impossible de preparer ce round.
             </h1>
             <p className="max-w-xl text-base leading-7 text-zinc-300">
-              Aucune playlist jouable n est disponible dans les donnees mockees
-              actuelles.
+              Aucun theme jouable n est disponible pour ce mini-jeu.
             </p>
           </div>
-          <Button className="w-full sm:w-fit" href="/playlists">
-            Retour aux playlists
+          <Button className="w-full sm:w-fit" href="/mini-games">
+            Retour aux mini-jeux
           </Button>
         </Card>
       </PageShell>

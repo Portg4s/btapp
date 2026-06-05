@@ -49,7 +49,7 @@ export default function Home() {
               <Button className="w-full sm:w-auto" href="/party/setup">
                 Lancer une partie
               </Button>
-              <Button className="w-full sm:w-auto" href="/game" variant="secondary">
+              <Button className="w-full sm:w-auto" href="/mini-games" variant="secondary">
                 Mode mini-jeu
               </Button>
             </div>
