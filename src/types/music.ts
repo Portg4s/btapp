@@ -8,6 +8,7 @@ export type MusicTrack = {
   answerTitle?: string;
   category?: string;
   sourceTitle?: string;
+  searchTags?: string[];
   revealImageUrl?: string;
   artworkUrl?: string;
   album?: string;

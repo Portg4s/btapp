@@ -73,12 +73,17 @@ type MusicProviderResult = {
 type InternalMusicSearchResult = {
   artist?: string;
   artworkUrl?: string;
+  collectionCensoredName?: string;
   audioPreviewUrl?: string;
   collectionName?: string;
+  country?: string;
   id?: number;
+  kind?: string;
   primaryGenreName?: string;
   sourceTitle?: string;
+  trackCensoredName?: string;
   title?: string;
+  wrapperType?: string;
 };
 
 type InternalMusicSearchResponse = {
@@ -165,6 +170,13 @@ async function fetchItunesTracks({
       familyKey: seedKey,
       genres: track.primaryGenreName ? [track.primaryGenreName] : undefined,
       providerRank: index,
+      searchTags: [
+        track.trackCensoredName,
+        track.collectionCensoredName,
+        track.country,
+        track.kind,
+        track.wrapperType,
+      ].flatMap((tag) => (tag ? [tag] : [])),
       seedKey,
       sourceTitle: track.collectionName,
     }));

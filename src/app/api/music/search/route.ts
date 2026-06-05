@@ -3,11 +3,16 @@ const ITUNES_SEARCH_URL = "https://itunes.apple.com/search";
 type ItunesTrackResult = {
   artistName?: string;
   artworkUrl100?: string;
+  collectionCensoredName?: string;
   collectionName?: string;
+  country?: string;
+  kind?: string;
   previewUrl?: string;
   primaryGenreName?: string;
+  trackCensoredName?: string;
   trackId?: number;
   trackName?: string;
+  wrapperType?: string;
 };
 
 type ItunesSearchResponse = {
@@ -73,11 +78,16 @@ export async function GET(request: Request) {
           artist: track.artistName,
           artworkUrl: getLargeArtworkUrl(track.artworkUrl100),
           audioPreviewUrl: track.previewUrl,
+          collectionCensoredName: track.collectionCensoredName,
           collectionName: track.collectionName,
+          country: track.country,
           id: track.trackId,
+          kind: track.kind,
           primaryGenreName: track.primaryGenreName,
           sourceTitle: track.collectionName,
+          trackCensoredName: track.trackCensoredName,
           title: track.trackName,
+          wrapperType: track.wrapperType,
         })),
     });
   } catch {

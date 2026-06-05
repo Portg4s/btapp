@@ -16,8 +16,7 @@ const MEDIUM_BLOCKED_TERMS = [
   "rework",
   "remake",
 ];
-const EASY_BLOCKED_TERMS = [
-  ...MEDIUM_BLOCKED_TERMS,
+const EASY_HARD_BLOCKED_TERMS = [
   "cumbia",
   "salsa",
   "bachata",
@@ -26,37 +25,55 @@ const EASY_BLOCKED_TERMS = [
   "spanish",
   "latino",
   "latin",
-  "version",
+  "fan made",
+  "unofficial",
+  "lofi",
+  "lo-fi",
+  "nightcore",
+  "slowed",
+  "sped up",
+  "karaoke",
+  "cover",
+  "remix",
+  "fanmade",
+];
+const EASY_BLOCKED_TERMS = [
+  ...MEDIUM_BLOCKED_TERMS,
+  ...EASY_HARD_BLOCKED_TERMS,
   "versh",
   "tribute",
   "tribute to",
   "opening mix",
   "vibes",
   "vibe",
-  "fan made",
-  "unofficial",
   "mix",
-  "instrumental",
   "tabata",
   "workout",
   "fitness",
-  "lofi",
-  "lo-fi",
-  "nightcore",
-  "slowed",
-  "sped up",
-  "rework",
-  "remake",
-  "piano",
-  "karaoke",
-  "cover",
-  "remix",
-  "fanmade",
   "score",
   "original score",
   "chill",
   "ambient",
   "inspired by",
+  "amalee",
+  "caleb hyles",
+  "dj jo",
+  "geek music",
+  "jonathan young",
+  "kamex",
+  "miura jam",
+  "movie sounds unlimited",
+  "natewantstobattle",
+  "niyari",
+  "pellek",
+  "power music workout",
+  "rap ar anime",
+  "shiro neko",
+  "soundtrack wonder band",
+  "studio yuraki",
+  "the hit crew",
+  "the theme system",
+  "tv theme players",
 ];
 const EASY_POSITIVE_TERMS = [
   "single",
@@ -139,6 +156,7 @@ function getSearchableTrackText(track: MusicTrack) {
       track.answerTitle,
       track.category,
       track.sourceTitle,
+      ...(track.searchTags ?? []),
       ...(track.genres ?? []),
     ].join(" "),
   );
@@ -160,6 +178,14 @@ function hasBlockedTerm(track: MusicTrack, difficulty: PlaylistDifficulty) {
   const searchableText = getSearchableTrackText(track);
 
   return getBlockedTerms(difficulty).some((term) =>
+    searchableText.includes(normalizeSelectionValue(term)),
+  );
+}
+
+function hasEasyHardBlockedTerm(track: MusicTrack) {
+  const searchableText = getSearchableTrackText(track);
+
+  return EASY_HARD_BLOCKED_TERMS.some((term) =>
     searchableText.includes(normalizeSelectionValue(term)),
   );
 }
@@ -243,6 +269,16 @@ export function filterTracksByDifficulty(
       track.artist &&
       !hasBlockedTerm(track, difficulty) &&
       (difficulty !== "easy" || !hasEasyAlternativeSourceSignal(track)),
+  );
+}
+
+function filterEasyRelaxedTracks(tracks: CandidateTrack[]) {
+  return tracks.filter(
+    (track) =>
+      track.audioPreviewUrl &&
+      track.title &&
+      track.artist &&
+      !hasEasyHardBlockedTerm(track),
   );
 }
 
@@ -409,7 +445,28 @@ export function selectPartyTracks({
   const familyDedupedTracks = dedupeByFamily(preferredTracks);
 
   if (difficulty === "easy") {
-    return balanceTracksByCategory(dedupeTracks(familyDedupedTracks), limit);
+    if (familyDedupedTracks.length >= limit) {
+      return balanceTracksByCategory(dedupeTracks(familyDedupedTracks), limit);
+    }
+
+    const relaxedScoredTracks = dedupeTracks(filterEasyRelaxedTracks(tracks))
+      .map((track) => ({
+        ...track,
+        selectionScore:
+          scoreCandidateTrack(track, difficulty, recentTrackKeys) - 35,
+      }))
+      .sort((trackA, trackB) => trackB.selectionScore - trackA.selectionScore);
+    const strictHistoryKeys = new Set(
+      familyDedupedTracks.map((track) => getTrackHistoryKey(track)),
+    );
+    const fallbackTracks = relaxedScoredTracks.filter(
+      (track) => !strictHistoryKeys.has(getTrackHistoryKey(track)),
+    );
+
+    return balanceTracksByCategory(
+      dedupeTracks([...familyDedupedTracks, ...fallbackTracks]),
+      limit,
+    );
   }
 
   const selectionPool =
