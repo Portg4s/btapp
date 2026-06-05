@@ -52,6 +52,9 @@ export default function Home() {
               <Button className="w-full sm:w-auto" href="/mini-games" variant="secondary">
                 Mode mini-jeu
               </Button>
+              <Button className="w-full sm:w-auto" href="/multiplayer" variant="ghost">
+                Multijoueur beta
+              </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
