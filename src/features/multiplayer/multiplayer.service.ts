@@ -2,11 +2,17 @@ import { getSupabaseBrowserClient, getSupabaseConfigError } from "@/lib/supabase
 import type {
   CreateRoomInput,
   JoinRoomInput,
+  MultiplayerGameSettings,
   MultiplayerResult,
+  RoomAnswer,
   Room,
   RoomPlayer,
+  RoomScoreboardEntry,
   RoomStatus,
+  RoomSession,
+  RoomTrack,
 } from "@/types/multiplayer";
+import type { MusicTrack } from "@/types/music";
 
 type RoomRow = {
   code: string;
@@ -14,6 +20,10 @@ type RoomRow = {
   game_mode: string | null;
   host_name: string;
   id: string;
+  current_round_index: number | null;
+  finished_at: string | null;
+  revealed_at: string | null;
+  round_started_at: string | null;
   settings: Record<string, unknown> | null;
   status: RoomStatus;
   updated_at: string;
@@ -26,6 +36,24 @@ type RoomPlayerRow = {
   last_seen_at: string;
   nickname: string;
   room_id: string;
+};
+
+type RoomTrackRow = {
+  created_at: string;
+  id: string;
+  room_id: string;
+  round_index: number;
+  track_data: MusicTrack;
+};
+
+type RoomAnswerRow = {
+  answer_value: string;
+  created_at: string;
+  id: string;
+  is_correct: boolean;
+  player_id: string;
+  room_id: string;
+  round_index: number;
 };
 
 const roomCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -71,9 +99,35 @@ function toRoom(row: RoomRow): Room {
     gameMode: row.game_mode,
     hostName: row.host_name,
     id: row.id,
+    currentRoundIndex: row.current_round_index ?? 0,
+    finishedAt: row.finished_at,
+    revealedAt: row.revealed_at,
+    roundStartedAt: row.round_started_at,
     settings: row.settings ?? {},
     status: row.status,
     updatedAt: row.updated_at,
+  };
+}
+
+function toRoomTrack(row: RoomTrackRow): RoomTrack {
+  return {
+    createdAt: row.created_at,
+    id: row.id,
+    roomId: row.room_id,
+    roundIndex: row.round_index,
+    track: row.track_data,
+  };
+}
+
+function toRoomAnswer(row: RoomAnswerRow): RoomAnswer {
+  return {
+    answerValue: row.answer_value,
+    createdAt: row.created_at,
+    id: row.id,
+    isCorrect: row.is_correct,
+    playerId: row.player_id,
+    roomId: row.room_id,
+    roundIndex: row.round_index,
   };
 }
 
@@ -147,7 +201,7 @@ export async function createRoom({
   gameMode = "track",
   hostName,
   settings = {},
-}: CreateRoomInput): Promise<MultiplayerResult<Room>> {
+}: CreateRoomInput): Promise<MultiplayerResult<RoomSession>> {
   const normalizedHostName = normalizeName(hostName);
 
   if (!normalizedHostName) {
@@ -188,11 +242,20 @@ export async function createRoom({
       roomId: room.id,
     });
 
-    if (playerResult.error) {
-      return { data: null, error: playerResult.error };
+    if (playerResult.error || !playerResult.data) {
+      return {
+        data: null,
+        error: playerResult.error ?? "Impossible d'ajouter ce joueur.",
+      };
     }
 
-    return { data: room, error: null };
+    return {
+      data: {
+        player: playerResult.data,
+        room,
+      },
+      error: null,
+    };
   }
 
   return {
@@ -204,7 +267,7 @@ export async function createRoom({
 export async function joinRoom({
   code,
   nickname,
-}: JoinRoomInput): Promise<MultiplayerResult<Room>> {
+}: JoinRoomInput): Promise<MultiplayerResult<RoomSession>> {
   const normalizedNickname = normalizeName(nickname);
 
   if (!normalizedNickname) {
@@ -223,11 +286,292 @@ export async function joinRoom({
     roomId: roomResult.data.id,
   });
 
-  if (playerResult.error) {
-    return { data: null, error: playerResult.error };
+  if (playerResult.error || !playerResult.data) {
+    return {
+      data: null,
+      error: playerResult.error ?? "Impossible d'ajouter ce joueur.",
+    };
   }
 
-  return { data: roomResult.data, error: null };
+  return {
+    data: {
+      player: playerResult.data,
+      room: roomResult.data,
+    },
+    error: null,
+  };
+}
+
+export async function startMultiplayerGame({
+  roomId,
+  gameMode,
+  settings,
+  tracks,
+}: {
+  gameMode: string;
+  roomId: string;
+  settings: MultiplayerGameSettings;
+  tracks: MusicTrack[];
+}): Promise<MultiplayerResult<Room>> {
+  if (tracks.length < settings.questionCount) {
+    return {
+      data: null,
+      error: "Pas assez d'extraits pour lancer cette partie.",
+    };
+  }
+
+  const { client, error } = getClientOrError();
+
+  if (!client) {
+    return { data: null, error };
+  }
+
+  const selectedTracks = tracks.slice(0, settings.questionCount);
+
+  const { error: tracksDeleteError } = await client
+    .from("room_tracks")
+    .delete()
+    .eq("room_id", roomId);
+
+  if (tracksDeleteError) {
+    return { data: null, error: tracksDeleteError.message };
+  }
+
+  const { error: answersDeleteError } = await client
+    .from("room_answers")
+    .delete()
+    .eq("room_id", roomId);
+
+  if (answersDeleteError) {
+    return { data: null, error: answersDeleteError.message };
+  }
+
+  const { error: tracksInsertError } = await client.from("room_tracks").insert(
+    selectedTracks.map((track, index) => ({
+      room_id: roomId,
+      round_index: index,
+      track_data: track,
+    })),
+  );
+
+  if (tracksInsertError) {
+    return { data: null, error: tracksInsertError.message };
+  }
+
+  const { data, error: updateError } = await client
+    .from("rooms")
+    .update({
+      current_round_index: 0,
+      finished_at: null,
+      game_mode: gameMode,
+      revealed_at: null,
+      round_started_at: new Date().toISOString(),
+      settings,
+      status: "playing",
+    })
+    .eq("id", roomId)
+    .select("*")
+    .single<RoomRow>();
+
+  if (updateError) {
+    return { data: null, error: updateError.message };
+  }
+
+  return { data: toRoom(data), error: null };
+}
+
+export async function getRoomTracks(
+  roomId: string,
+): Promise<MultiplayerResult<RoomTrack[]>> {
+  const { client, error } = getClientOrError();
+
+  if (!client) {
+    return { data: null, error };
+  }
+
+  const { data, error: queryError } = await client
+    .from("room_tracks")
+    .select("*")
+    .eq("room_id", roomId)
+    .order("round_index", { ascending: true })
+    .returns<RoomTrackRow[]>();
+
+  if (queryError) {
+    return { data: null, error: queryError.message };
+  }
+
+  return { data: (data ?? []).map(toRoomTrack), error: null };
+}
+
+export async function submitRoomAnswer({
+  answerValue,
+  isCorrect,
+  playerId,
+  roomId,
+  roundIndex,
+}: {
+  answerValue: string;
+  isCorrect: boolean;
+  playerId: string;
+  roomId: string;
+  roundIndex: number;
+}): Promise<MultiplayerResult<RoomAnswer>> {
+  const { client, error } = getClientOrError();
+
+  if (!client) {
+    return { data: null, error };
+  }
+
+  const { data, error: insertError } = await client
+    .from("room_answers")
+    .upsert(
+      {
+        answer_value: answerValue,
+        is_correct: isCorrect,
+        player_id: playerId,
+        room_id: roomId,
+        round_index: roundIndex,
+      },
+      { onConflict: "room_id,player_id,round_index" },
+    )
+    .select("*")
+    .single<RoomAnswerRow>();
+
+  if (insertError) {
+    return { data: null, error: insertError.message };
+  }
+
+  return { data: toRoomAnswer(data), error: null };
+}
+
+export async function getRoomAnswers(
+  roomId: string,
+): Promise<MultiplayerResult<RoomAnswer[]>> {
+  const { client, error } = getClientOrError();
+
+  if (!client) {
+    return { data: null, error };
+  }
+
+  const { data, error: queryError } = await client
+    .from("room_answers")
+    .select("*")
+    .eq("room_id", roomId)
+    .order("created_at", { ascending: true })
+    .returns<RoomAnswerRow[]>();
+
+  if (queryError) {
+    return { data: null, error: queryError.message };
+  }
+
+  return { data: (data ?? []).map(toRoomAnswer), error: null };
+}
+
+export async function revealRoomRound(
+  roomId: string,
+): Promise<MultiplayerResult<Room>> {
+  const { client, error } = getClientOrError();
+
+  if (!client) {
+    return { data: null, error };
+  }
+
+  const { data, error: updateError } = await client
+    .from("rooms")
+    .update({
+      revealed_at: new Date().toISOString(),
+      status: "reveal",
+    })
+    .eq("id", roomId)
+    .select("*")
+    .single<RoomRow>();
+
+  if (updateError) {
+    return { data: null, error: updateError.message };
+  }
+
+  return { data: toRoom(data), error: null };
+}
+
+export async function advanceRoomRound({
+  currentRoundIndex,
+  roomId,
+  totalRounds,
+}: {
+  currentRoundIndex: number;
+  roomId: string;
+  totalRounds: number;
+}): Promise<MultiplayerResult<Room>> {
+  if (currentRoundIndex + 1 >= totalRounds) {
+    return finishRoom(roomId);
+  }
+
+  const { client, error } = getClientOrError();
+
+  if (!client) {
+    return { data: null, error };
+  }
+
+  const { data, error: updateError } = await client
+    .from("rooms")
+    .update({
+      current_round_index: currentRoundIndex + 1,
+      revealed_at: null,
+      round_started_at: new Date().toISOString(),
+      status: "playing",
+    })
+    .eq("id", roomId)
+    .select("*")
+    .single<RoomRow>();
+
+  if (updateError) {
+    return { data: null, error: updateError.message };
+  }
+
+  return { data: toRoom(data), error: null };
+}
+
+export async function finishRoom(
+  roomId: string,
+): Promise<MultiplayerResult<Room>> {
+  const { client, error } = getClientOrError();
+
+  if (!client) {
+    return { data: null, error };
+  }
+
+  const { data, error: updateError } = await client
+    .from("rooms")
+    .update({
+      finished_at: new Date().toISOString(),
+      status: "finished",
+    })
+    .eq("id", roomId)
+    .select("*")
+    .single<RoomRow>();
+
+  if (updateError) {
+    return { data: null, error: updateError.message };
+  }
+
+  return { data: toRoom(data), error: null };
+}
+
+export function getRoomScoreboard({
+  answers,
+  players,
+}: {
+  answers: RoomAnswer[];
+  players: RoomPlayer[];
+}): RoomScoreboardEntry[] {
+  return players
+    .map((player) => ({
+      player,
+      score: answers.filter(
+        (answer) => answer.playerId === player.id && answer.isCorrect,
+      ).length,
+    }))
+    .sort((left, right) => right.score - left.score);
 }
 
 async function addRoomPlayer({

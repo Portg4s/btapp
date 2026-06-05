@@ -22,8 +22,8 @@ export default function MultiplayerPage() {
             Cree une room, invite les joueurs.
           </h1>
           <p className="max-w-2xl text-base leading-7 text-zinc-300">
-            Cette premiere base prepare les sessions partagees : code de room,
-            pseudos et lobby. La synchronisation du jeu arrivera ensuite.
+            Cree une session partagee, fais rejoindre les joueurs, puis lance
+            un mini-jeu synchronise en beta avec scores simples.
           </p>
         </div>
       </div>
@@ -36,7 +36,7 @@ export default function MultiplayerPage() {
               Creer une session
             </h2>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              Genere un code et ouvre un lobby pour accueillir les joueurs.
+              Genere un code, configure le mini-jeu et lance la partie.
             </p>
           </div>
           <Button className="w-full sm:w-fit" href="/multiplayer/create">
@@ -51,7 +51,7 @@ export default function MultiplayerPage() {
               Rejoindre une session
             </h2>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              Entre un code et ton pseudo pour rejoindre un lobby existant.
+              Entre un code et ton pseudo pour jouer depuis ton appareil.
             </p>
           </div>
           <Button className="w-full sm:w-fit" href="/multiplayer/join" variant="secondary">

@@ -30,7 +30,13 @@ export function CreateRoomClient() {
       return;
     }
 
-    router.push(`/multiplayer/room/${result.data.code}`);
+    window.sessionStorage.setItem(
+      `bt-room-player-${result.data.room.code}`,
+      result.data.player.id,
+    );
+    router.push(
+      `/multiplayer/room/${result.data.room.code}?playerId=${result.data.player.id}`,
+    );
   }
 
   return (

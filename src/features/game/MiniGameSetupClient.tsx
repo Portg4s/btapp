@@ -36,7 +36,6 @@ export function MiniGameSetupClient({
   initialMode,
   themes,
 }: MiniGameSetupClientProps) {
-  const [mode, setMode] = useState<MiniGameMode>(initialMode);
   const [selectedThemeIds, setSelectedThemeIds] = useState(() =>
     themes.map((theme) => theme.id),
   );
@@ -49,12 +48,12 @@ export function MiniGameSetupClient({
     const params = new URLSearchParams({
       count: String(questionCount),
       difficulty,
-      mode,
+      mode: initialMode,
       themes: selectedThemeIds.join(","),
     });
 
     return `/game?${params.toString()}`;
-  }, [difficulty, mode, questionCount, selectedThemeIds]);
+  }, [difficulty, initialMode, questionCount, selectedThemeIds]);
 
   function toggleTheme(themeId: string) {
     setSelectedThemeIds((currentThemeIds) =>
@@ -76,7 +75,7 @@ export function MiniGameSetupClient({
 
         <div className="space-y-4">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-cyan-200">
-            {modeLabels[mode]}
+            Mode : {modeLabels[initialMode]}
           </p>
           <h1 className="max-w-2xl text-4xl font-semibold leading-tight text-white drop-shadow-[0_0_26px_rgba(217,70,239,0.16)] sm:text-5xl lg:text-6xl">
             Configure ton mini-jeu.
@@ -94,21 +93,13 @@ export function MiniGameSetupClient({
         <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="space-y-5">
             <ConfigGroup title="Mode">
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(["track", "artist"] as MiniGameMode[]).map((modeOption) => (
-                  <button
-                    className={`bt-interactive-lift rounded-2xl border px-4 py-3 text-left text-sm font-semibold ${
-                      mode === modeOption
-                        ? "border-cyan-200/55 bg-cyan-300/[0.14] text-white"
-                        : "border-cyan-300/12 bg-cyan-300/[0.045] text-zinc-300"
-                    }`}
-                    key={modeOption}
-                    onClick={() => setMode(modeOption)}
-                    type="button"
-                  >
-                    {modeLabels[modeOption]}
-                  </button>
-                ))}
+              <div className="rounded-2xl border border-cyan-200/35 bg-cyan-300/[0.1] p-4">
+                <p className="text-base font-semibold text-white">
+                  {modeLabels[initialMode]}
+                </p>
+                <Button className="mt-3 w-full sm:w-fit" href="/mini-games" variant="ghost">
+                  Changer de mode
+                </Button>
               </div>
             </ConfigGroup>
 

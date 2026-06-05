@@ -1,8 +1,8 @@
 import { PageShell } from "@/components/layout/PageShell";
 import { Card } from "@/components/ui/Card";
-import { RoomLobbyClient } from "@/features/multiplayer/RoomLobbyClient";
+import { MultiplayerGameClient } from "@/features/multiplayer/MultiplayerGameClient";
 
-type MultiplayerRoomPageProps = {
+type MultiplayerPlayPageProps = {
   params: Promise<{
     code: string;
   }>;
@@ -11,10 +11,10 @@ type MultiplayerRoomPageProps = {
   }>;
 };
 
-export default async function MultiplayerRoomPage({
+export default async function MultiplayerPlayPage({
   params,
   searchParams,
-}: MultiplayerRoomPageProps) {
+}: MultiplayerPlayPageProps) {
   const { code } = await params;
   const { playerId } = await searchParams;
   const initialPlayerId = Array.isArray(playerId) ? playerId[0] : playerId;
@@ -23,9 +23,9 @@ export default async function MultiplayerRoomPage({
     <PageShell>
       <Card
         as="section"
-        className="max-w-3xl border-cyan-300/20 bg-cyan-300/[0.045] lg:col-span-2"
+        className="max-w-4xl border-cyan-300/20 bg-cyan-300/[0.045] lg:col-span-2"
       >
-        <RoomLobbyClient code={code} initialPlayerId={initialPlayerId} />
+        <MultiplayerGameClient code={code} initialPlayerId={initialPlayerId} />
       </Card>
     </PageShell>
   );

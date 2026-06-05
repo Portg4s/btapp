@@ -39,16 +39,16 @@ Vercel. Cette verification n'est pas incluse dans le mode economie.
 
 ## Supabase multijoueur
 
-Le multijoueur V1 pose seulement une fondation de lobby :
+Le multijoueur V1 beta permet :
 
 - creation de room
 - code de session
 - rejoindre avec un pseudo
-- liste des joueurs
-- bouton de rafraichissement manuel
-
-La synchronisation de partie, les scores live et les reponses temps reel seront
-branches dans un lot suivant.
+- lobby avec liste des joueurs
+- configuration host : mode, themes, difficulte, questions
+- mini-jeux jouables `Devine le morceau` et `Devine l'artiste`
+- reponses par joueur et score simple
+- avance manuelle par l'hote : reveler puis question suivante
 
 ### Configuration
 
@@ -64,5 +64,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 4. Dans Supabase SQL Editor, executer `supabase/schema.sql`.
 5. Dans Vercel, ajouter les memes variables d'environnement.
 
+Si le schema lobby a deja ete execute, relancer `supabase/schema.sql` pour
+ajouter les colonnes de round et les tables `room_tracks` / `room_answers`.
+
 Le schema active RLS avec des policies permissives pour cette V1 privee/test.
-Elles devront etre durcies avant une ouverture publique.
+Elles devront etre durcies avant une ouverture publique. La synchro utilise
+pour l'instant un polling leger ; le timer temps reel et les protections anti-
+triche arriveront dans un lot suivant. Tester plutot avec 4 ou 5 joueurs max.

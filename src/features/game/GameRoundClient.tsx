@@ -496,10 +496,8 @@ export function GameRoundClient({ mode, playlist }: GameRoundClientProps) {
               <p className="text-sm leading-6 text-zinc-400">
                 {hasAnswered
                   ? isCorrect
-                    ? "Bonne reponse. Signal verrouille."
-                    : mode === "artist"
-                      ? `Mauvaise reponse. Le bon artiste etait ${currentRound.track.artist}.`
-                      : `Mauvaise reponse. Le bon titre etait ${currentRound.track.title}.`
+                    ? "Bonne reponse !"
+                    : "Mauvaise reponse."
                   : "Selectionne une proposition pour verrouiller ta reponse."}
               </p>
 
