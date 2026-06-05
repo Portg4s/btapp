@@ -72,8 +72,122 @@ a {
   }
 }
 
+@keyframes bt-soft-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bt-ambient-drift {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+
+  100% {
+    background-position: 42px 42px, -42px 42px;
+  }
+}
+
+@keyframes bt-audio-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 34px rgba(34, 211, 238, 0.16),
+      inset 0 0 28px rgba(34, 211, 238, 0.1);
+  }
+
+  50% {
+    box-shadow:
+      0 0 58px rgba(217, 70, 239, 0.26),
+      inset 0 0 34px rgba(34, 211, 238, 0.16);
+  }
+}
+
+@keyframes bt-ring-wave {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.84);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.16);
+  }
+}
+
 .bt-disc {
   animation: bt-disc-spin 18s linear infinite;
+}
+
+.bt-app-reveal {
+  animation: bt-soft-reveal 680ms ease-out both;
+}
+
+.bt-ambient-grid {
+  animation: bt-ambient-drift 22s linear infinite;
+}
+
+.bt-interactive-lift {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.bt-interactive-lift:hover {
+  transform: translateY(-1px);
+}
+
+.bt-audio-disc {
+  position: relative;
+  animation: bt-audio-glow 4.8s ease-in-out infinite;
+}
+
+.bt-audio-disc::before,
+.bt-audio-disc::after {
+  border: 1px solid rgba(103, 232, 249, 0.16);
+  border-radius: inherit;
+  content: "";
+  inset: -14px;
+  position: absolute;
+}
+
+.bt-audio-disc::before {
+  animation: bt-ring-wave 2.8s ease-out infinite;
+}
+
+.bt-audio-disc::after {
+  animation: bt-ring-wave 2.8s ease-out 1.35s infinite;
+}
+
+.bt-audio-disc-core {
+  animation: bt-disc-spin 18s linear infinite;
+}
+
+.bt-audio-disc[data-state="ready"] .bt-audio-disc-core {
+  animation-duration: 34s;
+}
+
+.bt-audio-disc[data-state="playing"] .bt-audio-disc-core,
+.bt-audio-disc[data-state="reveal"] .bt-audio-disc-core {
+  animation-duration: 14s;
+}
+
+.bt-audio-disc[data-state="paused"] {
+  animation-play-state: paused;
+}
+
+.bt-audio-disc[data-state="paused"]::before,
+.bt-audio-disc[data-state="paused"]::after,
+.bt-audio-disc[data-state="paused"] .bt-audio-disc-core {
+  animation-play-state: paused;
 }
 
 .bt-eq-bar {
@@ -90,9 +204,20 @@ a {
     scroll-behavior: auto;
   }
 
+  .bt-app-reveal,
   .bt-disc,
   .bt-eq-bar,
-  .bt-orbit-glow {
+  .bt-orbit-glow,
+  .bt-ambient-grid,
+  .bt-audio-disc,
+  .bt-audio-disc::before,
+  .bt-audio-disc::after,
+  .bt-audio-disc-core {
     animation: none;
+  }
+
+  .bt-interactive-lift,
+  .bt-interactive-lift:hover {
+    transform: none;
   }
 }

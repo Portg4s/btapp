@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AudioEqualizer } from "@/components/audio/AudioEqualizer";
 import { PageShell } from "@/components/layout/PageShell";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -119,6 +120,15 @@ export function PartyGameClient({
     () => selectedCategories.join(" + "),
     [selectedCategories],
   );
+  const audioMotionState = isPaused
+    ? "paused"
+    : phase === "guessing"
+      ? "playing"
+      : phase === "reveal"
+        ? "reveal"
+        : "ready";
+  const isAudioMotionActive =
+    !isPaused && (phase === "guessing" || phase === "reveal");
 
   useEffect(() => {
     let isCancelled = false;
@@ -490,13 +500,17 @@ export function PartyGameClient({
             {revealImageUrl ? (
               <div
                 aria-label="Visuel de la reponse"
-                className="aspect-square w-full rounded-2xl border border-cyan-300/15 bg-cover bg-center shadow-[0_0_34px_rgba(34,211,238,0.16)] sm:rounded-3xl"
+                className="bt-audio-disc aspect-square w-full rounded-2xl border border-cyan-300/15 bg-cover bg-center shadow-[0_0_34px_rgba(34,211,238,0.16)] sm:rounded-3xl"
+                data-state={audioMotionState}
                 role="img"
                 style={{ backgroundImage: `url(${revealImageUrl})` }}
               />
             ) : (
-              <div className="flex aspect-square w-full items-center justify-center rounded-2xl border border-cyan-300/15 bg-[linear-gradient(145deg,rgba(34,211,238,0.16),rgba(217,70,239,0.14),rgba(15,23,42,0.94))] sm:rounded-3xl">
-                <div className="h-14 w-14 rounded-full border-[12px] border-cyan-100 border-r-fuchsia-300 shadow-[0_0_26px_rgba(34,211,238,0.24)]" />
+              <div
+                className="bt-audio-disc flex aspect-square w-full items-center justify-center rounded-2xl border border-cyan-300/15 bg-[linear-gradient(145deg,rgba(34,211,238,0.16),rgba(217,70,239,0.14),rgba(15,23,42,0.94))] sm:rounded-3xl"
+                data-state={audioMotionState}
+              >
+                <div className="bt-audio-disc-core h-14 w-14 rounded-full border-[12px] border-cyan-100 border-r-fuchsia-300 shadow-[0_0_26px_rgba(34,211,238,0.24)]" />
               </div>
             )}
 
@@ -521,14 +535,23 @@ export function PartyGameClient({
                   <RevealDetail label="Source" value={sourceLabel} />
                 ) : null}
               </div>
+              <div className="rounded-2xl border border-cyan-300/10 bg-black/15 px-3 py-1.5">
+                <AudioEqualizer isActive={isAudioMotionActive} size="compact" />
+              </div>
             </div>
           </div>
         ) : (
-          <div className="flex aspect-[4/3] max-h-[46vh] items-center justify-center rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(217,70,239,0.22),transparent_34%),linear-gradient(145deg,rgba(34,211,238,0.16),rgba(15,23,42,0.94))] shadow-[inset_0_0_58px_rgba(34,211,238,0.08)] sm:aspect-square">
-            <div className="relative flex h-36 w-36 items-center justify-center rounded-full border border-cyan-200/20 bg-black/30 shadow-[0_0_56px_rgba(217,70,239,0.22),inset_0_0_32px_rgba(34,211,238,0.12)] sm:h-44 sm:w-44">
+          <div className="relative flex aspect-[4/3] max-h-[42vh] items-center justify-center rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(217,70,239,0.22),transparent_34%),linear-gradient(145deg,rgba(34,211,238,0.16),rgba(15,23,42,0.94))] shadow-[inset_0_0_58px_rgba(34,211,238,0.08)] sm:aspect-square">
+            <div
+              className="bt-audio-disc relative flex h-32 w-32 items-center justify-center rounded-full border border-cyan-200/20 bg-black/30 sm:h-44 sm:w-44"
+              data-state={audioMotionState}
+            >
               <div className="absolute h-52 w-52 rounded-full border border-cyan-300/10 sm:h-60 sm:w-60" />
               <div className="absolute h-40 w-40 rounded-full border border-fuchsia-300/10 sm:h-48 sm:w-48" />
-              <div className="h-20 w-20 rounded-full border-[16px] border-cyan-100 border-r-fuchsia-300 shadow-[0_0_32px_rgba(34,211,238,0.28)] sm:h-24 sm:w-24 sm:border-[18px]" />
+              <div className="bt-audio-disc-core h-20 w-20 rounded-full border-[14px] border-cyan-100 border-r-fuchsia-300 shadow-[0_0_32px_rgba(34,211,238,0.28)] sm:h-24 sm:w-24 sm:border-[18px]" />
+            </div>
+            <div className="absolute bottom-3 rounded-full border border-cyan-300/10 bg-black/20 px-4 py-1">
+              <AudioEqualizer isActive={isAudioMotionActive} size="compact" />
             </div>
           </div>
         )}

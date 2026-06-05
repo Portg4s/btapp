@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AudioEqualizer } from "@/components/audio/AudioEqualizer";
 import { PageShell } from "@/components/layout/PageShell";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -137,6 +138,7 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
   const hasAnswered = selectedTrackId !== null;
   const isCorrect = selectedTrackId === currentRound?.track.id;
   const isLastRound = answers.length >= questionCount;
+  const isAudioMotionActive = audio.status === "playing";
 
   function handleAnswer(trackId: string) {
     if (!currentRound || hasAnswered || isFinished) {
@@ -317,14 +319,17 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
         </div>
       </div>
 
-      <Card className="relative flex flex-col gap-4 overflow-hidden border-cyan-300/20 bg-cyan-300/[0.045] lg:col-span-2">
+      <Card className="relative flex flex-col gap-3 overflow-hidden border-cyan-300/20 bg-cyan-300/[0.045] lg:col-span-2">
         <div className="absolute inset-x-5 top-0 h-px bg-[linear-gradient(90deg,transparent,#67e8f9,#f0abfc,transparent)]" />
 
-        <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+        <div className="grid gap-3 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3 rounded-3xl border border-white/10 bg-black/20 p-3">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/15 bg-[linear-gradient(145deg,rgba(34,211,238,0.16),rgba(217,70,239,0.12),rgba(15,23,42,0.92))] sm:h-28 sm:w-28">
-                <div className="h-12 w-12 rounded-full border-[10px] border-cyan-100 border-r-fuchsia-300 shadow-[0_0_24px_rgba(34,211,238,0.24)] sm:h-16 sm:w-16 sm:border-[12px]" />
+            <div className="flex items-center gap-3 rounded-3xl border border-white/10 bg-black/20 p-2.5 sm:p-3">
+              <div
+                className="bt-audio-disc flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/15 bg-[linear-gradient(145deg,rgba(34,211,238,0.16),rgba(217,70,239,0.12),rgba(15,23,42,0.92))] sm:h-28 sm:w-28"
+                data-state={isAudioMotionActive ? "playing" : "ready"}
+              >
+                <div className="bt-audio-disc-core h-11 w-11 rounded-full border-[9px] border-cyan-100 border-r-fuchsia-300 shadow-[0_0_24px_rgba(34,211,238,0.24)] sm:h-16 sm:w-16 sm:border-[12px]" />
               </div>
 
               <div className="min-w-0 flex-1">
@@ -340,9 +345,17 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
                         ? "Lecture en pause."
                         : "Pret a lancer."}
                 </p>
-                <Button className="mt-3 min-h-11 w-full px-4 text-sm" onClick={handleAudioToggle}>
+                <div className="mt-2 flex items-end gap-3">
+                  <Button className="min-h-10 flex-1 px-4 text-sm" onClick={handleAudioToggle}>
                   {audio.status === "playing" ? "Pause audio" : "Ecouter"}
-                </Button>
+                  </Button>
+                  <div className="hidden rounded-full border border-cyan-300/10 bg-black/20 px-3 py-0.5 sm:block">
+                    <AudioEqualizer
+                      isActive={isAudioMotionActive}
+                      size="compact"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -360,7 +373,7 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
             ) : null}
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fuchsia-200">
                 Reponses
@@ -380,7 +393,7 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
 
                 return (
                   <button
-                    className={`flex min-h-16 items-center gap-3 rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-300 disabled:cursor-default ${
+                    className={`bt-interactive-lift flex min-h-14 items-center gap-2.5 rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-300 disabled:cursor-default ${
                       isCorrectOption
                         ? "border-cyan-200/60 bg-cyan-300/[0.16] shadow-[0_0_24px_rgba(34,211,238,0.18)]"
                         : isWrongSelection
@@ -408,7 +421,7 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
               })}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div className="sticky bottom-2 z-10 grid gap-3 rounded-2xl border border-white/10 bg-[#050611]/90 p-2 backdrop-blur-md sm:static sm:grid-cols-[1fr_auto] sm:items-center sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
               <p className="text-sm leading-6 text-zinc-400">
                 {hasAnswered
                   ? isCorrect
