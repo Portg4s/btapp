@@ -15,10 +15,11 @@ import {
 } from "@/features/game";
 import { useAudioPreview } from "@/features/game/useAudioPreview";
 import { searchItunesTracks } from "@/features/music/musicProvider";
-import type { GameSession, UserAnswer } from "@/types/game";
+import type { GameSession, MiniGameMode, UserAnswer } from "@/types/game";
 import type { MusicTrack, Playlist } from "@/types/music";
 
 type GameRoundClientProps = {
+  mode: MiniGameMode;
   playlist: Playlist;
 };
 
@@ -26,6 +27,16 @@ type ProviderStatus = "loading" | "ready" | "error";
 
 const MIN_OPTION_COUNT = 4;
 const DEFAULT_QUESTION_COUNT = 10;
+const modeLabels: Record<MiniGameMode, string> = {
+  artist: "Devine l'artiste",
+  track: "Devine le morceau",
+};
+
+type AnswerOption = {
+  detail?: string;
+  id: string;
+  label: string;
+};
 
 function createAnsweredSession(
   initialSession: GameSession,
@@ -50,7 +61,57 @@ function getPlayableCategories(playlist: Playlist) {
     : [playlist.name];
 }
 
-export function GameRoundClient({ playlist }: GameRoundClientProps) {
+function getStableIndex(seed: string, length: number) {
+  if (length <= 0) {
+    return 0;
+  }
+
+  return (
+    seed.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0) %
+    length
+  );
+}
+
+function createTrackAnswerOptions(
+  correctTrack: MusicTrack,
+  tracks: MusicTrack[],
+): AnswerOption[] {
+  return createAnswerOptions(correctTrack, tracks).map((track) => ({
+    detail: track.artist,
+    id: track.id,
+    label: track.title,
+  }));
+}
+
+function createArtistAnswerOptions(
+  correctTrack: MusicTrack,
+  tracks: MusicTrack[],
+): AnswerOption[] {
+  const wrongArtists = Array.from(
+    new Set(
+      tracks
+        .map((track) => track.artist)
+        .filter((artist) => artist && artist !== correctTrack.artist),
+    ),
+  ).slice(0, MIN_OPTION_COUNT - 1);
+  const options = [correctTrack.artist, ...wrongArtists].slice(
+    0,
+    MIN_OPTION_COUNT,
+  );
+  const correctArtistIndex = getStableIndex(correctTrack.id, options.length);
+
+  return [
+    ...options.slice(1, correctArtistIndex + 1),
+    correctTrack.artist,
+    ...options.slice(correctArtistIndex + 1),
+  ].map((artist) => ({
+    detail: "Artiste",
+    id: artist,
+    label: artist,
+  }));
+}
+
+export function GameRoundClient({ mode, playlist }: GameRoundClientProps) {
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState(false);
@@ -77,7 +138,7 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
         setProviderStatus("error");
         setProviderError(
           result.error ??
-            "Impossible de charger assez d'extraits reels pour ce theme.",
+            "Impossible de charger assez d'extraits reels. Choisis plus de themes ou reduis le nombre de questions.",
         );
         return;
       }
@@ -132,20 +193,28 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
         totalRounds: questionCount,
       };
   const answerOptions = currentRound
-    ? createAnswerOptions(currentRound.track, tracks)
+    ? mode === "artist"
+      ? createArtistAnswerOptions(currentRound.track, tracks)
+      : createTrackAnswerOptions(currentRound.track, tracks)
     : [];
   const audio = useAudioPreview(currentRound?.track.audioPreviewUrl ?? "");
   const hasAnswered = selectedTrackId !== null;
-  const isCorrect = selectedTrackId === currentRound?.track.id;
+  const correctAnswerId =
+    mode === "artist" ? currentRound?.track.artist : currentRound?.track.id;
+  const isCorrect = selectedTrackId === correctAnswerId;
   const isLastRound = answers.length >= questionCount;
   const isAudioMotionActive = audio.status === "playing";
 
-  function handleAnswer(trackId: string) {
+  function handleAnswer(answerId: string) {
     if (!currentRound || hasAnswered || isFinished) {
       return;
     }
 
-    setSelectedTrackId(trackId);
+    const nextIsCorrect =
+      answerId ===
+      (mode === "artist" ? currentRound.track.artist : currentRound.track.id);
+
+    setSelectedTrackId(answerId);
     setAnswers((currentAnswers) => {
       if (currentAnswers.some((answer) => answer.trackId === currentRound.track.id)) {
         return currentAnswers;
@@ -155,8 +224,8 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
         ...currentAnswers,
         {
           trackId: currentRound.track.id,
-          selectedTrackId: trackId,
-          isCorrect: trackId === currentRound.track.id,
+          selectedTrackId: answerId,
+          isCorrect: nextIsCorrect,
           answeredAt: new Date().toISOString(),
           responseTimeMs: 0,
         },
@@ -239,7 +308,7 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
             </h1>
             <p className="max-w-xl text-base leading-7 text-zinc-300">
               {providerError ??
-                "Le theme ne fournit pas assez de previews pour une session propre."}
+                "Ce reglage ne fournit pas assez de previews pour une session propre. Essaie plus de themes, moins de questions, ou une difficulte plus souple."}
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -269,7 +338,7 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
             </h1>
             <p className="max-w-xl text-base leading-7 text-zinc-300">
               {score.correctAnswers}/{score.totalRounds} bonnes reponses sur le
-              theme {playlist.name}.
+              theme {playlist.name} en mode {modeLabels[mode]}.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -308,7 +377,7 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
               {playlist.name}
             </p>
             <h1 className="mt-2 text-3xl font-semibold leading-tight text-white drop-shadow-[0_0_26px_rgba(34,211,238,0.18)] sm:text-5xl">
-              Devine le morceau
+              {modeLabels[mode]}
             </h1>
           </div>
 
@@ -379,15 +448,17 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
                 Reponses
               </p>
               <h2 className="mt-1 text-xl font-semibold text-white">
-                Choisis le bon titre
+                {mode === "artist"
+                  ? "Choisis le bon artiste"
+                  : "Choisis le bon titre"}
               </h2>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
-              {answerOptions.map((track, index) => {
-                const isSelected = selectedTrackId === track.id;
+              {answerOptions.map((option, index) => {
+                const isSelected = selectedTrackId === option.id;
                 const isCorrectOption =
-                  hasAnswered && track.id === currentRound.track.id;
+                  hasAnswered && option.id === correctAnswerId;
                 const isWrongSelection =
                   hasAnswered && isSelected && !isCorrectOption;
 
@@ -401,19 +472,19 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
                           : "border-cyan-300/12 bg-cyan-300/[0.045] hover:border-cyan-300/25 hover:bg-cyan-300/[0.08]"
                     }`}
                     disabled={hasAnswered}
-                    key={track.id}
-                    onClick={() => handleAnswer(track.id)}
+                    key={option.id}
+                    onClick={() => handleAnswer(option.id)}
                     type="button"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-black/20 text-xs font-semibold text-cyan-100">
                       {index + 1}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="line-clamp-1 block text-sm font-semibold text-white">
-                        {track.title}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="line-clamp-1 block text-sm font-semibold text-white">
+                        {option.label}
                       </span>
                       <span className="line-clamp-1 block text-xs text-zinc-500">
-                        {track.artist}
+                        {option.detail}
                       </span>
                     </span>
                   </button>
@@ -426,7 +497,9 @@ export function GameRoundClient({ playlist }: GameRoundClientProps) {
                 {hasAnswered
                   ? isCorrect
                     ? "Bonne reponse. Signal verrouille."
-                    : `Mauvaise reponse. Le bon titre etait ${currentRound.track.title}.`
+                    : mode === "artist"
+                      ? `Mauvaise reponse. Le bon artiste etait ${currentRound.track.artist}.`
+                      : `Mauvaise reponse. Le bon titre etait ${currentRound.track.title}.`
                   : "Selectionne une proposition pour verrouiller ta reponse."}
               </p>
 

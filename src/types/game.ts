@@ -1,4 +1,5 @@
 export type GameStatus = "idle" | "playing" | "paused" | "finished";
+export type MiniGameMode = "track" | "artist";
 
 export type UserAnswer = {
   trackId: string;

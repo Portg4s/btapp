@@ -284,7 +284,7 @@ export function PartyGameClient({
     void playAudio().then((didPlay) => {
       if (!didPlay) {
         setAudioNotice(
-          "Lecture automatique bloquee. Utilise Reprendre pour lancer l extrait.",
+          "Lecture bloquee. Appuie sur Reprendre pour relancer l extrait.",
         );
       }
     });
@@ -308,7 +308,7 @@ export function PartyGameClient({
 
     if (!didPlay) {
       setAudioNotice(
-        "Lecture automatique bloquee. Utilise Reprendre pour lancer l extrait.",
+        "Lecture bloquee. Appuie sur Reprendre pour relancer l extrait.",
       );
     }
   }
@@ -321,7 +321,7 @@ export function PartyGameClient({
         void playAudio().then((didPlay) => {
           if (!didPlay) {
             setAudioNotice(
-              "Lecture impossible. Utilise Reprendre audio si necessaire.",
+              "Extrait temporairement indisponible. Reessaie ou passe au suivant.",
             );
           }
         });
@@ -568,7 +568,7 @@ export function PartyGameClient({
         ) : null}
         {audioStatus === "error" ? (
           <p className="text-sm leading-6 text-fuchsia-200">
-            Extrait indisponible : {currentTrack.audioPreviewUrl}
+            Extrait temporairement indisponible. Reessaie ou passe au suivant.
           </p>
         ) : null}
         {audioNotice ? (

@@ -13,7 +13,7 @@ export const mockPlaylists: Playlist[] = [
   {
     id: "playlist-anime",
     name: "Anime",
-    description: "Openings et themes pop culture pour Devine le morceau.",
+    description: "Openings et themes pop culture pour mini-jeux audio.",
     difficulty: "easy",
     categories: ["Anime"],
     questionCount: 10,

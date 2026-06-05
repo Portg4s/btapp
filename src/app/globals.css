@@ -121,6 +121,20 @@ a {
   }
 }
 
+@keyframes bt-splash-out {
+  0%,
+  72% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.02);
+    visibility: hidden;
+  }
+}
+
 .bt-disc {
   animation: bt-disc-spin 18s linear infinite;
 }
@@ -190,6 +204,10 @@ a {
   animation-play-state: paused;
 }
 
+.bt-session-splash {
+  animation: bt-splash-out 1050ms ease-out forwards;
+}
+
 .bt-eq-bar {
   animation: bt-eq-bounce 980ms ease-in-out infinite;
   transform-origin: bottom;
@@ -212,7 +230,8 @@ a {
   .bt-audio-disc,
   .bt-audio-disc::before,
   .bt-audio-disc::after,
-  .bt-audio-disc-core {
+  .bt-audio-disc-core,
+  .bt-session-splash {
     animation: none;
   }
 

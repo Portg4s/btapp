@@ -31,7 +31,11 @@ export function useAudioPreview(audioPreviewUrl: string) {
     }
 
     function handleError() {
-      setAudioState({ sourceUrl: audioPreviewUrl, status: "error" });
+      setAudioState((currentState) =>
+        currentState.status === "playing" || currentState.status === "paused"
+          ? currentState
+          : { sourceUrl: audioPreviewUrl, status: "error" },
+      );
     }
 
     audio.addEventListener("ended", handleEnded);
@@ -55,11 +59,15 @@ export function useAudioPreview(audioPreviewUrl: string) {
     }
 
     try {
+      if (audio.error) {
+        audio.load();
+      }
+
       await audio.play();
       setAudioState({ sourceUrl: audioPreviewUrl, status: "playing" });
       return true;
     } catch {
-      setAudioState({ sourceUrl: audioPreviewUrl, status: "error" });
+      setAudioState({ sourceUrl: audioPreviewUrl, status: "paused" });
       return false;
     }
   }, [audioPreviewUrl]);
