@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050611;
+  --foreground: #f8fafc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  text-rendering: geometricPrecision;
+  min-width: 320px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+  scroll-behavior: smooth;
+}
+
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.38);
+  color: #ffffff;
+}
+
+@keyframes bt-disc-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bt-eq-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes bt-orbit-pulse {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: scale(0.98);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+}
+
+.bt-disc {
+  animation: bt-disc-spin 18s linear infinite;
+}
+
+.bt-eq-bar {
+  animation: bt-eq-bounce 980ms ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+.bt-orbit-glow {
+  animation: bt-orbit-pulse 4.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .bt-disc,
+  .bt-eq-bar,
+  .bt-orbit-glow {
+    animation: none;
+  }
+}
