@@ -92,6 +92,35 @@ function normalizeCode(value: string) {
   return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
 }
 
+function toPublicError(message?: string | null) {
+  if (!message) {
+    return "Action impossible pour le moment. Reessaie dans quelques secondes.";
+  }
+
+  const lowerMessage = message.toLowerCase();
+
+  if (
+    lowerMessage.includes("supabase") ||
+    lowerMessage.includes("failed to fetch") ||
+    lowerMessage.includes("network")
+  ) {
+    return "Connexion au multijoueur indisponible. Verifie la configuration Supabase ou reessaie.";
+  }
+
+  if (
+    lowerMessage.includes("room_tracks") ||
+    lowerMessage.includes("room_answers") ||
+    lowerMessage.includes("track_data") ||
+    lowerMessage.includes("answer_value") ||
+    lowerMessage.includes("relation") ||
+    lowerMessage.includes("column")
+  ) {
+    return "Le multijoueur n'est pas pret. Verifie que le schema Supabase V1 a ete applique.";
+  }
+
+  return message;
+}
+
 function toRoom(row: RoomRow): Room {
   return {
     code: row.code,
@@ -164,7 +193,7 @@ export async function getRoomByCode(
     .maybeSingle<RoomRow>();
 
   if (queryError) {
-    return { data: null, error: queryError.message };
+    return { data: null, error: toPublicError(queryError.message) };
   }
 
   if (!data) {
@@ -191,7 +220,7 @@ export async function getRoomPlayers(
     .returns<RoomPlayerRow[]>();
 
   if (queryError) {
-    return { data: null, error: queryError.message };
+    return { data: null, error: toPublicError(queryError.message) };
   }
 
   return { data: (data ?? []).map(toRoomPlayer), error: null };
@@ -232,7 +261,7 @@ export async function createRoom({
         continue;
       }
 
-      return { data: null, error: insertError.message };
+      return { data: null, error: toPublicError(insertError.message) };
     }
 
     const room = toRoom(data);
@@ -334,7 +363,7 @@ export async function startMultiplayerGame({
     .eq("room_id", roomId);
 
   if (tracksDeleteError) {
-    return { data: null, error: tracksDeleteError.message };
+    return { data: null, error: toPublicError(tracksDeleteError.message) };
   }
 
   const { error: answersDeleteError } = await client
@@ -343,7 +372,7 @@ export async function startMultiplayerGame({
     .eq("room_id", roomId);
 
   if (answersDeleteError) {
-    return { data: null, error: answersDeleteError.message };
+    return { data: null, error: toPublicError(answersDeleteError.message) };
   }
 
   const { error: tracksInsertError } = await client.from("room_tracks").insert(
@@ -355,7 +384,7 @@ export async function startMultiplayerGame({
   );
 
   if (tracksInsertError) {
-    return { data: null, error: tracksInsertError.message };
+    return { data: null, error: toPublicError(tracksInsertError.message) };
   }
 
   const { data, error: updateError } = await client
@@ -374,7 +403,7 @@ export async function startMultiplayerGame({
     .single<RoomRow>();
 
   if (updateError) {
-    return { data: null, error: updateError.message };
+    return { data: null, error: toPublicError(updateError.message) };
   }
 
   return { data: toRoom(data), error: null };
@@ -397,7 +426,7 @@ export async function getRoomTracks(
     .returns<RoomTrackRow[]>();
 
   if (queryError) {
-    return { data: null, error: queryError.message };
+    return { data: null, error: toPublicError(queryError.message) };
   }
 
   return { data: (data ?? []).map(toRoomTrack), error: null };
@@ -424,21 +453,22 @@ export async function submitRoomAnswer({
 
   const { data, error: insertError } = await client
     .from("room_answers")
-    .upsert(
-      {
-        answer_value: answerValue,
-        is_correct: isCorrect,
-        player_id: playerId,
-        room_id: roomId,
-        round_index: roundIndex,
-      },
-      { onConflict: "room_id,player_id,round_index" },
-    )
+    .insert({
+      answer_value: answerValue,
+      is_correct: isCorrect,
+      player_id: playerId,
+      room_id: roomId,
+      round_index: roundIndex,
+    })
     .select("*")
     .single<RoomAnswerRow>();
 
   if (insertError) {
-    return { data: null, error: insertError.message };
+    if (insertError.code === "23505") {
+      return { data: null, error: "Tu as deja repondu a cette question." };
+    }
+
+    return { data: null, error: toPublicError(insertError.message) };
   }
 
   return { data: toRoomAnswer(data), error: null };
@@ -461,7 +491,7 @@ export async function getRoomAnswers(
     .returns<RoomAnswerRow[]>();
 
   if (queryError) {
-    return { data: null, error: queryError.message };
+    return { data: null, error: toPublicError(queryError.message) };
   }
 
   return { data: (data ?? []).map(toRoomAnswer), error: null };
@@ -487,7 +517,7 @@ export async function revealRoomRound(
     .single<RoomRow>();
 
   if (updateError) {
-    return { data: null, error: updateError.message };
+    return { data: null, error: toPublicError(updateError.message) };
   }
 
   return { data: toRoom(data), error: null };
@@ -525,7 +555,7 @@ export async function advanceRoomRound({
     .single<RoomRow>();
 
   if (updateError) {
-    return { data: null, error: updateError.message };
+    return { data: null, error: toPublicError(updateError.message) };
   }
 
   return { data: toRoom(data), error: null };
@@ -551,7 +581,7 @@ export async function finishRoom(
     .single<RoomRow>();
 
   if (updateError) {
-    return { data: null, error: updateError.message };
+    return { data: null, error: toPublicError(updateError.message) };
   }
 
   return { data: toRoom(data), error: null };
@@ -565,12 +595,21 @@ export function getRoomScoreboard({
   players: RoomPlayer[];
 }): RoomScoreboardEntry[] {
   return players
-    .map((player) => ({
-      player,
-      score: answers.filter(
-        (answer) => answer.playerId === player.id && answer.isCorrect,
-      ).length,
-    }))
+    .map((player) => {
+      const playerAnswers = answers.filter(
+        (answer) => answer.playerId === player.id,
+      );
+      const correctAnswers = playerAnswers.filter(
+        (answer) => answer.isCorrect,
+      ).length;
+
+      return {
+        correctAnswers,
+        player,
+        score: correctAnswers * 100,
+        totalAnswers: playerAnswers.length,
+      };
+    })
     .sort((left, right) => right.score - left.score);
 }
 
@@ -600,7 +639,7 @@ async function addRoomPlayer({
     .single<RoomPlayerRow>();
 
   if (insertError) {
-    return { data: null, error: insertError.message };
+    return { data: null, error: toPublicError(insertError.message) };
   }
 
   return { data: toRoomPlayer(data), error: null };

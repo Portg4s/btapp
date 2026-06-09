@@ -29,6 +29,11 @@ const modeLabels: Record<MiniGameMode, string> = {
   artist: "Devine l'artiste",
   track: "Devine le morceau",
 };
+const difficultyLabels: Record<PlaylistDifficulty, string> = {
+  easy: "Facile",
+  hard: "Difficile",
+  medium: "Moyen",
+};
 const difficultyOptions: Array<{ label: string; value: PlaylistDifficulty }> = [
   { label: "Facile", value: "easy" },
   { label: "Moyen", value: "medium" },
@@ -64,6 +69,7 @@ export function RoomLobbyClient({
   const [error, setError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const [copyLabel, setCopyLabel] = useState("Copier le code");
+  const [shareLabel, setShareLabel] = useState("Copier le lien");
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [mode, setMode] = useState<MiniGameMode>("track");
@@ -77,12 +83,28 @@ export function RoomLobbyClient({
   );
   const currentPlayer = players.find((player) => player.id === playerId);
   const isHost = Boolean(currentPlayer?.isHost);
+  const roomSettings = (room?.settings ?? {}) as Partial<MultiplayerGameSettings>;
+  const displayedMode =
+    room?.gameMode === "artist" || roomSettings.mode === "artist"
+      ? "artist"
+      : mode;
+  const displayedQuestionCount = roomSettings.questionCount ?? questionCount;
+  const displayedDifficulty = roomSettings.difficulty ?? difficulty;
+  const displayedThemeIds =
+    roomSettings.themeIds && roomSettings.themeIds.length > 0
+      ? roomSettings.themeIds
+      : selectedThemeIds;
+  const displayedThemes = mockPlaylists.filter((theme) =>
+    displayedThemeIds.includes(theme.id),
+  );
   const playHref = room
     ? `/multiplayer/room/${room.code}/play?playerId=${playerId}`
     : "";
 
-  const loadLobby = useCallback(async () => {
-    setIsLoading(true);
+  const loadLobby = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError(null);
 
     const roomResult = await getRoomByCode(code);
@@ -109,7 +131,14 @@ export function RoomLobbyClient({
       void loadLobby();
     }, 0);
 
-    return () => window.clearTimeout(timeout);
+    const interval = window.setInterval(() => {
+      void loadLobby({ silent: true });
+    }, 3500);
+
+    return () => {
+      window.clearTimeout(timeout);
+      window.clearInterval(interval);
+    };
   }, [code, loadLobby]);
 
   async function handleCopyCode() {
@@ -120,6 +149,22 @@ export function RoomLobbyClient({
     await navigator.clipboard.writeText(room.code);
     setCopyLabel("Code copie");
     window.setTimeout(() => setCopyLabel("Copier le code"), 1400);
+  }
+
+  async function handleCopyInviteLink() {
+    if (!room) {
+      return;
+    }
+
+    const invitePath = `/multiplayer/join?code=${encodeURIComponent(room.code)}`;
+    const inviteUrl =
+      typeof window === "undefined"
+        ? invitePath
+        : `${window.location.origin}${invitePath}`;
+
+    await navigator.clipboard.writeText(inviteUrl);
+    setShareLabel("Lien copie");
+    window.setTimeout(() => setShareLabel("Copier le lien"), 1400);
   }
 
   function toggleTheme(themeId: string) {
@@ -236,9 +281,27 @@ export function RoomLobbyClient({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
+        <InfoTile label="Mode" value={modeLabels[displayedMode]} />
+        <InfoTile label="Questions" value={String(displayedQuestionCount)} />
+        <InfoTile label="Difficulte" value={difficultyLabels[displayedDifficulty]} />
+        <InfoTile
+          label="Themes"
+          value={
+            displayedThemes.length > 0
+              ? displayedThemes.map((theme) => theme.name).join(", ")
+              : "A choisir"
+          }
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
         {players.map((player) => (
           <div
-            className="rounded-2xl border border-cyan-300/12 bg-cyan-300/[0.045] p-4"
+            className={`rounded-2xl border p-4 ${
+              player.id === currentPlayer?.id
+                ? "border-cyan-200/55 bg-cyan-300/[0.12] shadow-[0_0_24px_rgba(34,211,238,0.16)]"
+                : "border-cyan-300/12 bg-cyan-300/[0.045]"
+            }`}
             key={player.id}
           >
             <p className="text-base font-semibold text-white">
@@ -354,7 +417,7 @@ export function RoomLobbyClient({
         ) : (
           <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
             <p className="text-base font-semibold text-white">
-              En attente de l&apos;hote.
+              En attente de l&apos;hote
             </p>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               L&apos;hote choisit le mode, les themes, puis lance la partie.
@@ -375,6 +438,9 @@ export function RoomLobbyClient({
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button className="w-full sm:w-fit" onClick={handleCopyCode}>
           {copyLabel}
+        </Button>
+        <Button className="w-full sm:w-fit" onClick={handleCopyInviteLink} variant="secondary">
+          {shareLabel}
         </Button>
         <Button className="w-full sm:w-fit" onClick={() => void loadLobby()} variant="secondary">
           Rafraichir
@@ -421,5 +487,18 @@ function ConfigGroup({
       </h2>
       {children}
     </section>
+  );
+}
+
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-cyan-300/12 bg-black/20 p-3">
+      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-cyan-200">
+        {label}
+      </p>
+      <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white">
+        {value}
+      </p>
+    </div>
   );
 }

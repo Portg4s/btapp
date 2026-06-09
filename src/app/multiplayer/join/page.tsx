@@ -4,7 +4,18 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { JoinRoomClient } from "@/features/multiplayer/JoinRoomClient";
 
-export default function JoinMultiplayerRoomPage() {
+type JoinMultiplayerRoomPageProps = {
+  searchParams: Promise<{
+    code?: string | string[];
+  }>;
+};
+
+export default async function JoinMultiplayerRoomPage({
+  searchParams,
+}: JoinMultiplayerRoomPageProps) {
+  const { code } = await searchParams;
+  const initialCode = Array.isArray(code) ? code[0] : code;
+
   return (
     <PageShell>
       <Card
@@ -25,7 +36,7 @@ export default function JoinMultiplayerRoomPage() {
             Demande le code a l&apos;hote, ajoute ton pseudo, puis rejoins le lobby.
           </p>
         </div>
-        <JoinRoomClient />
+        <JoinRoomClient initialCode={initialCode} />
       </Card>
     </PageShell>
   );

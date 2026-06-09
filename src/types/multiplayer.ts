@@ -70,8 +70,10 @@ export type RoomAnswer = {
 };
 
 export type RoomScoreboardEntry = {
+  correctAnswers: number;
   player: RoomPlayer;
   score: number;
+  totalAnswers: number;
 };
 
 export type MultiplayerResult<TData> =

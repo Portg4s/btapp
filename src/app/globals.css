@@ -135,6 +135,17 @@ a {
   }
 }
 
+@keyframes bt-answer-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.16);
+  }
+
+  50% {
+    box-shadow: 0 0 42px rgba(34, 211, 238, 0.28);
+  }
+}
+
 .bt-disc {
   animation: bt-disc-spin 18s linear infinite;
 }
@@ -217,6 +228,10 @@ a {
   animation: bt-orbit-pulse 4.8s ease-in-out infinite;
 }
 
+.bt-answer-pulse {
+  animation: bt-answer-pulse 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -231,6 +246,7 @@ a {
   .bt-audio-disc::before,
   .bt-audio-disc::after,
   .bt-audio-disc-core,
+  .bt-answer-pulse,
   .bt-session-splash {
     animation: none;
   }

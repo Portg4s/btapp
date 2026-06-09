@@ -61,15 +61,39 @@ function getPlayableCategories(playlist: Playlist) {
     : [playlist.name];
 }
 
-function getStableIndex(seed: string, length: number) {
+function getStableIndex(seed: string | undefined, length: number) {
   if (length <= 0) {
     return 0;
   }
 
   return (
-    seed.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0) %
+    (seed ?? "")
+      .split("")
+      .reduce((sum, character) => sum + character.charCodeAt(0), 0) %
     length
   );
+}
+
+function getTrackAnswerLabel(track: MusicTrack) {
+  return track.answerTitle ?? track.title ?? "Titre inconnu";
+}
+
+function getArtistAnswerLabel(track: MusicTrack) {
+  return track.artist ?? "Artiste inconnu";
+}
+
+function getTrackOptionId(track: MusicTrack) {
+  return track.id || `${getTrackAnswerLabel(track)}-${getArtistAnswerLabel(track)}`;
+}
+
+function getCorrectAnswerId(track: MusicTrack, mode: MiniGameMode) {
+  return mode === "artist" ? getArtistAnswerLabel(track) : getTrackOptionId(track);
+}
+
+function getCorrectAnswerLabel(track: MusicTrack, mode: MiniGameMode) {
+  return mode === "artist"
+    ? getArtistAnswerLabel(track)
+    : getTrackAnswerLabel(track);
 }
 
 function createTrackAnswerOptions(
@@ -77,9 +101,9 @@ function createTrackAnswerOptions(
   tracks: MusicTrack[],
 ): AnswerOption[] {
   return createAnswerOptions(correctTrack, tracks).map((track) => ({
-    detail: track.artist,
-    id: track.id,
-    label: track.title,
+    detail: getArtistAnswerLabel(track),
+    id: getTrackOptionId(track),
+    label: getTrackAnswerLabel(track),
   }));
 }
 
@@ -90,11 +114,11 @@ function createArtistAnswerOptions(
   const wrongArtists = Array.from(
     new Set(
       tracks
-        .map((track) => track.artist)
-        .filter((artist) => artist && artist !== correctTrack.artist),
+        .map(getArtistAnswerLabel)
+        .filter((artist) => artist && artist !== getArtistAnswerLabel(correctTrack)),
     ),
   ).slice(0, MIN_OPTION_COUNT - 1);
-  const options = [correctTrack.artist, ...wrongArtists].slice(
+  const options = [getArtistAnswerLabel(correctTrack), ...wrongArtists].slice(
     0,
     MIN_OPTION_COUNT,
   );
@@ -102,7 +126,7 @@ function createArtistAnswerOptions(
 
   return [
     ...options.slice(1, correctArtistIndex + 1),
-    correctTrack.artist,
+    getArtistAnswerLabel(correctTrack),
     ...options.slice(correctArtistIndex + 1),
   ].map((artist) => ({
     detail: "Artiste",
@@ -199,20 +223,30 @@ export function GameRoundClient({ mode, playlist }: GameRoundClientProps) {
     : [];
   const audio = useAudioPreview(currentRound?.track.audioPreviewUrl ?? "");
   const hasAnswered = selectedTrackId !== null;
-  const correctAnswerId =
-    mode === "artist" ? currentRound?.track.artist : currentRound?.track.id;
+  const correctAnswerId = currentRound
+    ? getCorrectAnswerId(currentRound.track, mode)
+    : undefined;
+  const correctAnswerLabel = currentRound
+    ? getCorrectAnswerLabel(currentRound.track, mode)
+    : "Reponse indisponible";
   const isCorrect = selectedTrackId === correctAnswerId;
   const isLastRound = answers.length >= questionCount;
   const isAudioMotionActive = audio.status === "playing";
+  const audioStatusLabel =
+    audio.status === "error"
+      ? "Extrait indisponible. Passe au suivant."
+      : audio.status === "paused"
+        ? "Lecture bloquee. Appuie sur Reprendre."
+        : audio.status === "playing"
+          ? "Lecture en cours."
+          : "Pret a lancer.";
 
   function handleAnswer(answerId: string) {
-    if (!currentRound || hasAnswered || isFinished) {
+    if (!currentRound || !correctAnswerId || hasAnswered || isFinished) {
       return;
     }
 
-    const nextIsCorrect =
-      answerId ===
-      (mode === "artist" ? currentRound.track.artist : currentRound.track.id);
+    const nextIsCorrect = answerId === correctAnswerId;
 
     setSelectedTrackId(answerId);
     setAnswers((currentAnswers) => {
@@ -368,7 +402,7 @@ export function GameRoundClient({ mode, playlist }: GameRoundClientProps) {
           <Button className="px-3 py-2 text-sm sm:w-fit" href="/mini-games" variant="ghost">
             Quitter
           </Button>
-          <Badge>{hasAnswered ? "Reponse verrouillee" : "Round en cours"}</Badge>
+          <Badge>{hasAnswered ? "Reponse envoyee" : "Round en cours"}</Badge>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -406,17 +440,15 @@ export function GameRoundClient({ mode, playlist }: GameRoundClientProps) {
                   Extrait audio
                 </p>
                 <p className="mt-1 text-sm leading-6 text-zinc-400">
-                  {audio.status === "error"
-                    ? "Extrait indisponible."
-                    : audio.status === "playing"
-                      ? "Lecture en cours."
-                      : audio.status === "paused"
-                        ? "Lecture en pause."
-                        : "Pret a lancer."}
+                  {audioStatusLabel}
                 </p>
                 <div className="mt-2 flex items-end gap-3">
                   <Button className="min-h-10 flex-1 px-4 text-sm" onClick={handleAudioToggle}>
-                  {audio.status === "playing" ? "Pause audio" : "Ecouter"}
+                    {audio.status === "playing"
+                      ? "Pause audio"
+                      : audio.status === "paused"
+                        ? "Reprendre"
+                        : "Ecouter"}
                   </Button>
                   <div className="hidden rounded-full border border-cyan-300/10 bg-black/20 px-3 py-0.5 sm:block">
                     <AudioEqualizer
@@ -437,7 +469,7 @@ export function GameRoundClient({ mode, playlist }: GameRoundClientProps) {
 
             {audio.status === "error" ? (
               <p className="text-sm leading-6 text-fuchsia-200">
-                Cette preview iTunes est indisponible pour le moment.
+                Extrait indisponible. Passe au suivant.
               </p>
             ) : null}
           </div>
@@ -492,12 +524,20 @@ export function GameRoundClient({ mode, playlist }: GameRoundClientProps) {
               })}
             </div>
 
+            {hasAnswered ? (
+              <AnswerFeedback
+                correctAnswerLabel={correctAnswerLabel}
+                isCorrect={isCorrect}
+                mode={mode}
+              />
+            ) : null}
+
             <div className="sticky bottom-2 z-10 grid gap-3 rounded-2xl border border-white/10 bg-[#050611]/90 p-2 backdrop-blur-md sm:static sm:grid-cols-[1fr_auto] sm:items-center sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
               <p className="text-sm leading-6 text-zinc-400">
                 {hasAnswered
                   ? isCorrect
                     ? "Bonne reponse !"
-                    : "Mauvaise reponse."
+                    : `Mauvaise reponse. Reponse : ${correctAnswerLabel}`
                   : "Selectionne une proposition pour verrouiller ta reponse."}
               </p>
 
@@ -520,6 +560,42 @@ type StatTileProps = {
   label: string;
   value: string;
 };
+
+function AnswerFeedback({
+  correctAnswerLabel,
+  isCorrect,
+  mode,
+}: {
+  correctAnswerLabel: string;
+  isCorrect: boolean;
+  mode: MiniGameMode;
+}) {
+  return (
+    <div
+      className={`bt-answer-pulse rounded-3xl border p-4 shadow-[0_0_34px_rgba(34,211,238,0.16)] ${
+        isCorrect
+          ? "border-cyan-200/60 bg-cyan-300/[0.14]"
+          : "border-fuchsia-300/55 bg-fuchsia-300/[0.12]"
+      }`}
+    >
+      <p
+        className={`text-2xl font-black leading-tight sm:text-3xl ${
+          isCorrect ? "text-cyan-50" : "text-fuchsia-50"
+        }`}
+      >
+        {isCorrect ? "Bonne reponse !" : "Mauvaise reponse."}
+      </p>
+      {isCorrect ? null : (
+        <p className="mt-2 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-300">
+          {mode === "artist" ? "Artiste attendu" : "Titre attendu"}
+        </p>
+      )}
+      <p className="mt-1 text-xl font-semibold leading-tight text-white sm:text-2xl">
+        {correctAnswerLabel}
+      </p>
+    </div>
+  );
+}
 
 function StatTile({ label, value }: StatTileProps) {
   return (

@@ -50,26 +50,50 @@ function getStoredPlayerId(code: string) {
   return window.sessionStorage.getItem(`bt-room-player-${code}`) ?? "";
 }
 
-function getStableIndex(seed: string, length: number) {
+function getStableIndex(seed: string | undefined, length: number) {
   if (length <= 0) {
     return 0;
   }
 
   return (
-    seed.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0) %
+    (seed ?? "")
+      .split("")
+      .reduce((sum, character) => sum + character.charCodeAt(0), 0) %
     length
   );
 }
 
+function getTrackAnswerLabel(track: MusicTrack) {
+  return track.answerTitle ?? track.title ?? "Titre inconnu";
+}
+
+function getArtistAnswerLabel(track: MusicTrack) {
+  return track.artist ?? "Artiste inconnu";
+}
+
+function getTrackOptionId(track: MusicTrack) {
+  return track.id || `${getTrackAnswerLabel(track)}-${getArtistAnswerLabel(track)}`;
+}
+
+function getCorrectAnswerId(track: MusicTrack, mode: MiniGameMode) {
+  return mode === "artist" ? getArtistAnswerLabel(track) : getTrackOptionId(track);
+}
+
+function getCorrectAnswerLabel(track: MusicTrack, mode: MiniGameMode) {
+  return mode === "artist"
+    ? getArtistAnswerLabel(track)
+    : getTrackAnswerLabel(track);
+}
+
 function createTrackOptions(correctTrack: MusicTrack, tracks: MusicTrack[]) {
   const wrongTracks = tracks
-    .filter((track) => track.id !== correctTrack.id)
+    .filter((track) => getTrackOptionId(track) !== getTrackOptionId(correctTrack))
     .filter(
       (track, index, list) =>
         list.findIndex(
           (item) =>
-            (item.answerTitle ?? item.title).toLowerCase() ===
-            (track.answerTitle ?? track.title).toLowerCase(),
+            getTrackAnswerLabel(item).toLowerCase() ===
+            getTrackAnswerLabel(track).toLowerCase(),
         ) === index,
     )
     .slice(0, MIN_OPTION_COUNT - 1);
@@ -81,9 +105,9 @@ function createTrackOptions(correctTrack: MusicTrack, tracks: MusicTrack[]) {
     correctTrack,
     ...options.slice(correctIndex + 1),
   ].map((track) => ({
-    detail: track.artist,
-    id: track.id,
-    label: track.answerTitle ?? track.title,
+    detail: getArtistAnswerLabel(track),
+    id: getTrackOptionId(track),
+    label: getTrackAnswerLabel(track),
   }));
 }
 
@@ -91,11 +115,11 @@ function createArtistOptions(correctTrack: MusicTrack, tracks: MusicTrack[]) {
   const wrongArtists = Array.from(
     new Set(
       tracks
-        .map((track) => track.artist)
-        .filter((artist) => artist && artist !== correctTrack.artist),
+        .map(getArtistAnswerLabel)
+        .filter((artist) => artist && artist !== getArtistAnswerLabel(correctTrack)),
     ),
   ).slice(0, MIN_OPTION_COUNT - 1);
-  const options = [correctTrack.artist, ...wrongArtists].slice(
+  const options = [getArtistAnswerLabel(correctTrack), ...wrongArtists].slice(
     0,
     MIN_OPTION_COUNT,
   );
@@ -103,7 +127,7 @@ function createArtistOptions(correctTrack: MusicTrack, tracks: MusicTrack[]) {
 
   return [
     ...options.slice(1, correctIndex + 1),
-    correctTrack.artist,
+    getArtistAnswerLabel(correctTrack),
     ...options.slice(correctIndex + 1),
   ].map((artist) => ({
     detail: "Artiste",
@@ -205,19 +229,41 @@ export function MultiplayerGameClient({
     () => getRoomScoreboard({ answers, players }),
     [answers, players],
   );
+  const currentScoreEntry = scoreboard.find(
+    (entry) => entry.player.id === currentPlayer?.id,
+  );
   const answerOptions = currentTrack
     ? getOptions({ mode, track: currentTrack, tracks })
     : [];
-  const correctAnswerId =
-    mode === "artist" ? currentTrack?.artist : currentTrack?.id;
+  const correctAnswerId = currentTrack
+    ? getCorrectAnswerId(currentTrack, mode)
+    : undefined;
+  const correctAnswerLabel = currentTrack
+    ? getCorrectAnswerLabel(currentTrack, mode)
+    : "Reponse indisponible";
   const audio = useAudioPreview(currentTrack?.audioPreviewUrl ?? "");
   const isAudioMotionActive = audio.status === "playing";
+  const audioStatusLabel =
+    audio.status === "error"
+      ? "Extrait indisponible. Passe au suivant."
+      : audio.status === "paused"
+        ? "Lecture bloquee. Appuie sur Reprendre."
+        : audio.status === "playing"
+          ? "Lecture en cours."
+          : "Pret a lancer.";
   const totalRounds = roomTracks.length || settings.questionCount || 10;
   const roundNumber = (room?.currentRoundIndex ?? 0) + 1;
   const progress = totalRounds > 0 ? (roundNumber / totalRounds) * 100 : 0;
 
   async function handleAnswer(answerId: string) {
-    if (!room || !currentTrack || !currentPlayer || currentAnswer) {
+    if (
+      !room ||
+      room.status !== "playing" ||
+      !currentTrack ||
+      !currentPlayer ||
+      !correctAnswerId ||
+      currentAnswer
+    ) {
       return;
     }
 
@@ -226,7 +272,7 @@ export function MultiplayerGameClient({
 
     const result = await submitRoomAnswer({
       answerValue: answerId,
-      isCorrect: answerId === correctAnswerId,
+      isCorrect: Boolean(correctAnswerId && answerId === correctAnswerId),
       playerId: currentPlayer.id,
       roomId: room.id,
       roundIndex: room.currentRoundIndex,
@@ -334,7 +380,7 @@ export function MultiplayerGameClient({
     );
   }
 
-  if (room.status === "lobby" || !currentTrack) {
+  if (room.status === "lobby" || (!currentTrack && room.status !== "finished")) {
     return (
       <div className="space-y-5">
         <Badge>En attente</Badge>
@@ -381,7 +427,10 @@ export function MultiplayerGameClient({
             Ton score
           </p>
           <p className="mt-1 text-lg font-semibold text-white">
-            {scoreboard.find((entry) => entry.player.id === currentPlayer.id)?.score ?? 0} pts
+            {currentScoreEntry?.score ?? 0} pts
+          </p>
+          <p className="mt-1 text-xs font-semibold text-cyan-100">
+            {currentScoreEntry?.correctAnswers ?? 0} bonnes reponses
           </p>
         </div>
       </div>
@@ -394,9 +443,16 @@ export function MultiplayerGameClient({
       </div>
 
       {room.status === "finished" ? (
-        <div className="space-y-3 rounded-3xl border border-cyan-300/14 bg-cyan-300/[0.06] p-4">
-          <p className="text-lg font-semibold text-white">Partie terminee.</p>
-          <Scoreboard entries={scoreboard} />
+        <div className="space-y-4 rounded-3xl border border-cyan-300/14 bg-cyan-300/[0.06] p-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+              Classement final
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-white">
+              Partie terminee
+            </p>
+          </div>
+          <Scoreboard entries={scoreboard} currentPlayerId={currentPlayer.id} />
         </div>
       ) : (
         <>
@@ -414,10 +470,17 @@ export function MultiplayerGameClient({
               </p>
               <div className="mt-2 flex items-center gap-3">
                 <Button className="min-h-10 flex-1 px-4 text-sm" onClick={handleAudioToggle}>
-                  {audio.status === "playing" ? "Pause audio" : "Ecouter"}
+                  {audio.status === "playing"
+                    ? "Pause audio"
+                    : audio.status === "paused"
+                      ? "Reprendre"
+                      : "Ecouter"}
                 </Button>
                 <AudioEqualizer isActive={isAudioMotionActive} size="compact" />
               </div>
+              <p className="mt-2 text-xs font-semibold text-zinc-400">
+                {audioStatusLabel}
+              </p>
             </div>
           </div>
 
@@ -467,6 +530,15 @@ export function MultiplayerGameClient({
             </div>
           )}
 
+          {(currentAnswer || room.status === "reveal") && currentTrack ? (
+            <AnswerFeedback
+              correctAnswerLabel={correctAnswerLabel}
+              isCorrect={currentAnswer?.isCorrect}
+              mode={mode}
+              showNeutral={room.status === "reveal" && !currentAnswer}
+            />
+          ) : null}
+
           <div className="sticky bottom-2 z-10 grid gap-3 rounded-2xl border border-white/10 bg-[#050611]/90 p-2 backdrop-blur-md sm:static sm:grid-cols-[1fr_auto] sm:items-center sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
             <p className="text-sm leading-6 text-zinc-400">
               {currentAnswer
@@ -474,7 +546,7 @@ export function MultiplayerGameClient({
                   ? "Bonne reponse !"
                   : "Mauvaise reponse."
                 : room.status === "reveal"
-                  ? "Round revele."
+                  ? `Reponse : ${correctAnswerLabel}`
                   : "Choisis une proposition, puis attends l'hote."}
             </p>
 
@@ -511,24 +583,97 @@ export function MultiplayerGameClient({
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
           Scores
         </p>
-        <Scoreboard entries={scoreboard} />
+        <Scoreboard entries={scoreboard} currentPlayerId={currentPlayer.id} compact />
       </div>
     </div>
   );
 }
 
-function Scoreboard({ entries }: { entries: ReturnType<typeof getRoomScoreboard> }) {
+function AnswerFeedback({
+  correctAnswerLabel,
+  isCorrect,
+  mode,
+  showNeutral,
+}: {
+  correctAnswerLabel: string;
+  isCorrect?: boolean;
+  mode: MiniGameMode;
+  showNeutral?: boolean;
+}) {
+  const title = showNeutral
+    ? "Bonne reponse"
+    : isCorrect
+      ? "Bonne reponse !"
+      : "Mauvaise reponse.";
+  const isPositive = Boolean(isCorrect || showNeutral);
+
+  return (
+    <div
+      className={`bt-answer-pulse rounded-3xl border p-4 shadow-[0_0_34px_rgba(34,211,238,0.16)] ${
+        isPositive
+          ? "border-cyan-200/60 bg-cyan-300/[0.14]"
+          : "border-fuchsia-300/55 bg-fuchsia-300/[0.12]"
+      }`}
+    >
+      <p
+        className={`text-2xl font-black leading-tight sm:text-3xl ${
+          isPositive ? "text-cyan-50" : "text-fuchsia-50"
+        }`}
+      >
+        {title}
+      </p>
+      {isCorrect ? null : (
+        <p className="mt-2 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-300">
+          {mode === "artist" ? "Artiste attendu" : "Titre attendu"}
+        </p>
+      )}
+      <p className="mt-1 text-xl font-semibold leading-tight text-white sm:text-2xl">
+        {correctAnswerLabel}
+      </p>
+    </div>
+  );
+}
+
+function Scoreboard({
+  compact = false,
+  currentPlayerId,
+  entries,
+}: {
+  compact?: boolean;
+  currentPlayerId?: string;
+  entries: ReturnType<typeof getRoomScoreboard>;
+}) {
   return (
     <div className="mt-3 space-y-2">
       {entries.map((entry, index) => (
         <div
-          className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2"
+          className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 ${
+            entry.player.id === currentPlayerId
+              ? "border-cyan-200/55 bg-cyan-300/[0.11]"
+              : "border-white/10 bg-white/[0.035]"
+          }`}
           key={entry.player.id}
         >
-          <p className="min-w-0 text-sm font-semibold text-white">
-            {index + 1}. {entry.player.nickname}
-          </p>
-          <p className="text-sm font-semibold text-cyan-100">{entry.score} pts</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-white">
+              {index + 1}. {entry.player.nickname}
+            </p>
+            {compact ? null : (
+              <p className="mt-0.5 text-xs font-semibold text-zinc-400">
+                {entry.correctAnswers}/{entry.totalAnswers} bonnes reponses
+              </p>
+            )}
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-sm font-semibold text-cyan-100">
+              {entry.score} pts
+            </p>
+            {compact ? (
+              <p className="text-xs font-semibold text-zinc-500">
+                {entry.correctAnswers} OK
+              </p>
+            ) : null}
+          </div>
         </div>
       ))}
     </div>

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 const strengths = [
   "Categories modulables",
   "Extraits automatiques",
-  "Reveal sans friction",
+  "Reponse lisible",
   "Difficulte ajustable",
 ];
 

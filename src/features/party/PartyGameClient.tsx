@@ -284,7 +284,7 @@ export function PartyGameClient({
     void playAudio().then((didPlay) => {
       if (!didPlay) {
         setAudioNotice(
-          "Lecture bloquee. Appuie sur Reprendre pour relancer l extrait.",
+          "Lecture bloquee. Appuie sur Reprendre.",
         );
       }
     });
@@ -308,7 +308,7 @@ export function PartyGameClient({
 
     if (!didPlay) {
       setAudioNotice(
-        "Lecture bloquee. Appuie sur Reprendre pour relancer l extrait.",
+        "Lecture bloquee. Appuie sur Reprendre.",
       );
     }
   }
@@ -321,7 +321,7 @@ export function PartyGameClient({
         void playAudio().then((didPlay) => {
           if (!didPlay) {
             setAudioNotice(
-              "Extrait temporairement indisponible. Reessaie ou passe au suivant.",
+              "Extrait indisponible. Passe au suivant.",
             );
           }
         });
@@ -437,7 +437,7 @@ export function PartyGameClient({
                 ? "Pause"
                 : phase === "guessing"
                   ? "Devinez"
-                  : "Reveal"}
+                  : "Reponse"}
           </Badge>
         </div>
 
@@ -460,7 +460,7 @@ export function PartyGameClient({
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-              {phase === "reveal" ? "Reveal" : "Timer"}
+              {phase === "reveal" ? "Reponse" : "Timer"}
             </p>
             <p className="mt-1 text-4xl font-semibold text-white">
               {phase === "reveal" ? `${revealSecondsRemaining}s` : `${secondsRemaining}s`}
@@ -568,7 +568,7 @@ export function PartyGameClient({
         ) : null}
         {audioStatus === "error" ? (
           <p className="text-sm leading-6 text-fuchsia-200">
-            Extrait temporairement indisponible. Reessaie ou passe au suivant.
+            Extrait indisponible. Passe au suivant.
           </p>
         ) : null}
         {audioNotice ? (

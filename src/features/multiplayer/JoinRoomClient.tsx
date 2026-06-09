@@ -5,9 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { joinRoom } from "@/features/multiplayer/multiplayer.service";
 
-export function JoinRoomClient() {
+type JoinRoomClientProps = {
+  initialCode?: string;
+};
+
+export function JoinRoomClient({ initialCode = "" }: JoinRoomClientProps) {
   const router = useRouter();
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialCode.toUpperCase());
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

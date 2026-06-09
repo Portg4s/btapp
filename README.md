@@ -1,7 +1,7 @@
-# BT - Blindtest
+# BT - Blindtest V1
 
 BT est une web app Next.js mobile-first pour lancer des blindtests musicaux :
-mode soiree avec categories et previews iTunes, plus mini-jeux rapides.
+landing, mode soiree solo, mini-jeux rapides, PWA et multijoueur Supabase.
 
 ## Developpement
 
@@ -32,22 +32,26 @@ verifies, mais l'experience installable complete depend du navigateur.
 
 ```bash
 npm run lint
+npm run build
 ```
 
-Pour une validation complete avant production, lancer aussi un build local ou
-Vercel. Cette verification n'est pas incluse dans le mode economie.
+Tester aussi les flows principaux en local ou sur Vercel :
+
+- `/party/setup` puis `/party`
+- `/mini-games` puis `/playlists?mode=track` et `mode=artist`
+- `/multiplayer/create`, `/multiplayer/join`, lobby et partie
 
 ## Supabase multijoueur
 
-Le multijoueur V1 beta permet :
+Le multijoueur V1 permet :
 
 - creation de room
-- code de session
+- code de session visible, copie du code et lien d'invitation
 - rejoindre avec un pseudo
-- lobby avec liste des joueurs
+- lobby avec liste des joueurs et configuration lisible
 - configuration host : mode, themes, difficulte, questions
 - mini-jeux jouables `Devine le morceau` et `Devine l'artiste`
-- reponses par joueur et score simple
+- feedback de reponse, score compact et classement final
 - avance manuelle par l'hote : reveler puis question suivante
 
 ### Configuration
@@ -67,7 +71,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 Si le schema lobby a deja ete execute, relancer `supabase/schema.sql` pour
 ajouter les colonnes de round et les tables `room_tracks` / `room_answers`.
 
-Le schema active RLS avec des policies permissives pour cette V1 privee/test.
-Elles devront etre durcies avant une ouverture publique. La synchro utilise
-pour l'instant un polling leger ; le timer temps reel et les protections anti-
-triche arriveront dans un lot suivant. Tester plutot avec 4 ou 5 joueurs max.
+## Limites connues V1
+
+- Synchro multijoueur en polling leger, avec realtime a durcir plus tard.
+- RLS Supabase volontairement permissive pour test prive V1.
+- Qualite iTunes perfectible selon les themes et extraits disponibles.
+- Filtres musicaux et anti-doublons a ameliorer dans un futur lot.
+- Tester plutot avec 4 ou 5 joueurs max avant ouverture publique.
